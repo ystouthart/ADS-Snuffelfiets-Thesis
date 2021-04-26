@@ -27,8 +27,7 @@ Project Organization
     ├── reports            <- Generated analysis as HTML, PDF, LaTeX, etc.
     │   └── figures        <- Generated graphics and figures to be used in reporting.
     │
-    ├── requirements.txt   <- The requirements file for reproducing the analysis environment.
-    │                         
+    ├── requirements.txt   <- The requirements file for reproducing the analysis environment.                         
     │
     ├── src                <- Source code for use in this project.
         │
@@ -45,4 +44,4 @@ Project Organization
 
 --------
 
-<p><small>Project structure based on the <a target="_blank" href="https://drivendata.github.io/cookiecutter-data-science/">cookiecutter data science project template</a>.</small></p>
+<p><small>Project organization based on the <a target="_blank" href="https://drivendata.github.io/cookiecutter-data-science/">cookiecutter data science project template</a>.</small></p>
