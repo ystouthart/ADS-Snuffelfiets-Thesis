@@ -1,7 +1,7 @@
-ADS Thesis Project
+ADS Snuffelfiets Thesis
 ==============================
 
- Thesis Project of the Applied Data Science Master's programme 
+ Snuffelfiets Thesis Project in partial fulfilment of the Applied Data Science Master's programme at Utrecht University.
 
 Project Organization
 ------------
@@ -45,4 +45,4 @@ Project Organization
 
 --------
 
-<p><small>Project based on the <a target="_blank" href="https://drivendata.github.io/cookiecutter-data-science/">cookiecutter data science project template</a>. #cookiecutterdatascience</small></p>
+<p><small>Project structure based on the <a target="_blank" href="https://drivendata.github.io/cookiecutter-data-science/">cookiecutter data science project template</a>.</small></p>
