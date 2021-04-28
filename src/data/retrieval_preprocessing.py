@@ -9,6 +9,8 @@ from bs4 import BeautifulSoup
 import io
 import json
 
+# Weird bug, solved: https://github.com/pyproj4/pyproj/issues/605
+#pyproj.datadir.set_data_dir('C:\\Users\\Klant\\anaconda3\\envs\\thesis\\Library\\share\\proj')
 
 # Open Utrecht Province polygon.
 provinces = gpd.read_file("../../data/external/B1_Provinciegrenzen_van_Nederland/B1_Provinciegrenzen_van_NederlandPolygon.shp")
@@ -35,7 +37,7 @@ for csv in tqdm(test_csv_urls):
 
 
     # Remove all measurements with pm2.5 <0.5 and >150 ug/m3.
-    df = df[~(df["pm2_5"]<0.5)&(df["pm2_5"]>150)]
+    df = df[~((df["pm2_5"]<0.5)&(df["pm2_5"]>150))]
 
 
     # Remove all measurements with avg. speed >45 km/h
@@ -60,6 +62,7 @@ for csv in tqdm(test_csv_urls):
 
 
 df = pd.concat(data)    # merge all GeoDataFrames
+df.sort_values(by='recording_time', inplace=True)
 df.reset_index(drop=True, inplace=True)
 df.to_csv("../../data/external/all_snuffelfiets_raw.csv", index=False)
 data = []   # clear memory
