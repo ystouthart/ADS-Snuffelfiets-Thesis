@@ -5,7 +5,6 @@ import geopandas as gpd
 
 from tqdm import tqdm
 import requests
-from bs4 import BeautifulSoup
 import io
 import json
 
@@ -23,13 +22,11 @@ r = requests.get(url)
 data = r.json()
 
 csv_urls = [x['url'] for x in data['result']['resources']]
-test_csv_urls = csv_urls[:3]
+#test_csv_urls = csv_urls[:3]
 
 
-# Download each .csv-file, pre-process, and merge.
-data = []
-
-for csv in tqdm(test_csv_urls): 
+# Download each .csv-file, pre-process, and save.
+for csv in tqdm(csv_urls): 
     response = requests.get(csv)
     file_object = io.StringIO(response.content.decode('utf-8'))
     df = pd.read_csv(file_object, usecols=['sensor', 'air_quality_observed_id', 'lon', 'lat', 'recording_time', 'trip_sequence', 'humidity', 'pm2_5', 'pressure', 'temperature'])
@@ -40,29 +37,25 @@ for csv in tqdm(test_csv_urls):
     df = df[~((df["pm2_5"]<0.5)&(df["pm2_5"]>150))]
 
 
-    # Remove all measurements with avg. speed >45 km/h
+    # Remove all measurements with avg. speed >45 km/h (=12.5 m/s)
     geo_df = gpd.GeoDataFrame(df, geometry=gpd.points_from_xy(df['lon'],df['lat'], crs="EPSG:4326"))
     geo_df = geo_df.sort_values(by=['sensor', 'recording_time'])
     geo_df = geo_df.to_crs("EPSG:3857") # from WGS84 Geographic to WGS84 Projected
 
     geo_df['distance'] = geo_df.distance(geo_df.shift(1)) # distance between two consecutive measurements
     geo_df['delta_time'] = geo_df['recording_time'] - geo_df['recording_time'].shift(1) # time_delta between two consecutive measurements
-    geo_df['speed_ms'] = geo_df['distance'] / geo_df['delta_time'].dt.seconds # avg(v)=x/t
-    geo_df['speed_kmh'] = geo_df['speed_ms'] * 3.6
+    geo_df['delta_time'] = geo_df['delta_time'].dt.seconds # convert to seconds
+    geo_df['avg_speed_ms'] = geo_df['distance'] / geo_df['delta_time'] # avg(v)=x/t
 
-    geo_df = geo_df[~(geo_df['speed_kmh']>45)]
+    geo_df = geo_df[~(geo_df['avg_speed_ms']>12.5)]
 
 
     # Remove all measurements outside of Utrecht Province.
     geo_df = geo_df.to_crs("EPSG:28992")
     geo_df = gpd.sjoin(geo_df, utrecht, how="inner", op='within')
 
-
-    data.append(geo_df)
-
-
-df = pd.concat(data)    # merge all GeoDataFrames
-df.sort_values(by='recording_time', inplace=True)
-df.reset_index(drop=True, inplace=True)
-df.to_csv("../../data/external/all_snuffelfiets_raw.csv", index=False)
-data = []   # clear memory
+    # Save as .csv-file
+    geo_df.drop(labels=["geometry", "index_right", "CBS_CODE", "PROV_NAAM", "OBJECTID"], inplace=True, axis=1)
+    geo_df.reset_index(drop=True, inplace=True)
+    filename = "../../data/external/" + csv.split('/')[-1]
+    geo_df.to_csv(filename, index=False)
