@@ -1,4 +1,4 @@
-ADS Snuffelfiets Thesis
+ADS Snuffelfiets Thesis Project
 ==============================
 
  Snuffelfiets Thesis Project in partial fulfilment of the Applied Data Science Master's programme at Utrecht University.
