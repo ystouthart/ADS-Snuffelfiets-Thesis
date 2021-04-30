@@ -43,7 +43,7 @@ for csv in tqdm(csv_urls):
     geo_df = geo_df.to_crs("EPSG:28992") # from WGS84 Geographic to Amersfoort / RD New Projected
 
     geo_df['distance'] = geo_df.distance(geo_df.shift(1)) # distance between two consecutive measurements
-    geo_df['delta_time'] = geo_df['recording_time'] - geo_df['recording_time'].shift(1) # time_delta between two consecutive measurements
+    geo_df['delta_time'] = geo_df['recording_time'] - geo_df['recording_time'].shift(1) # delta_time between two consecutive measurements
     geo_df['delta_time'] = geo_df['delta_time'].dt.seconds # convert to seconds
     geo_df['avg_speed_ms'] = geo_df['distance'] / geo_df['delta_time'] # avg(v)=x/t
 
