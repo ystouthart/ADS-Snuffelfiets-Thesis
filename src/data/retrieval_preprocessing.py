@@ -29,7 +29,8 @@ csv_urls = [x['url'] for x in data['result']['resources']]
 for csv in tqdm(csv_urls): 
     response = requests.get(csv)
     file_object = io.StringIO(response.content.decode('utf-8'))
-    df = pd.read_csv(file_object, usecols=['sensor', 'air_quality_observed_id', 'lon', 'lat', 'recording_time', 'trip_sequence', 'humidity', 'pm2_5', 'pressure', 'temperature'])
+    df = pd.read_csv(file_object, usecols=['sensor', 'air_quality_observed_id', 'lon', 'lat',
+     'recording_time', 'trip_sequence', 'humidity', 'pm2_5', 'pressure', 'temperature'])
     df['recording_time'] = pd.to_datetime(df['recording_time'], format="%Y-%m-%d %H:%M:%S")
 
 
