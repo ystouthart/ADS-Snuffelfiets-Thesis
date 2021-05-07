@@ -66,7 +66,7 @@ for csv in tqdm(csv_urls):
        'P_GESCHEID', 'P_VERWEDUW', 'AANTAL_HH', 'P_EENP_HH', 'P_HH_Z_K',
        'P_HH_M_K', 'GEM_HH_GR', 'P_WEST_AL', 'P_N_W_AL', 'P_MAROKKO',
        'P_ANT_ARU', 'P_SURINAM', 'P_TURKIJE', 'P_OVER_NW', 'OPP_TOT',
-       'OPP_LAND', 'OPP_WATER', 'Shape_Leng', 'Shape_Area'], inplace=True, axis=1)    
+       'OPP_LAND', 'OPP_WATER', 'Shape_Leng', 'Shape_Area', 'index_right'], inplace=True, axis=1)    
     geo_df.reset_index(drop=True, inplace=True)
     filename = "../../data/external/city/" + csv.split('/')[-1]
     geo_df.to_csv(filename, index=False)
