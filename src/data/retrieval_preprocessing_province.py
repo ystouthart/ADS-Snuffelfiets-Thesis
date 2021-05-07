@@ -8,7 +8,7 @@ import requests
 import io
 import json
 
-# Weird bug, solved: https://github.com/pyproj4/pyproj/issues/605
+# Run in case of a weird pyproj error: 
 #pyproj.datadir.set_data_dir('C:\\Users\\Klant\\anaconda3\\envs\\thesis\\Library\\share\\proj')
 
 # Open Utrecht Province polygon.
@@ -17,6 +17,7 @@ utrecht = provinces[provinces["PROV_NAAM"] == "Utrecht"]
 
 
 # Retrieving all .csv-file locations.
+# url for RIVM corrected data: https://ckan.dataplatform.nl/api/3/action/package_show?id=3660d2e1-84ee-46bf-a7b6-7e9ac1fcaf3a&include_tracking=true
 url = 'https://ckan.dataplatform.nl/api/3/action/package_show?id=9cc4de28-6d03-4b59-8c66-085b3e8b3956&include_tracking=true'
 r = requests.get(url)
 data = r.json()
@@ -49,6 +50,11 @@ for csv in tqdm(csv_urls):
     geo_df['avg_speed_ms'] = geo_df['distance'] / geo_df['delta_time'] # avg(v)=x/t
 
     geo_df = geo_df[~(geo_df['avg_speed_ms']>12.5)]
+    
+    
+    # TODO: Ask about the <5-7.5 km/h requirement.
+    # Remove all measurements where the estimated speed between two measurements is below 5-7.5 km/h (~1.4 m/s).
+    #geo_df = geo_df[~(geo_df["avg_speed_ms"]<1.4)]
 
 
     # Remove all measurements outside of Utrecht Province.
