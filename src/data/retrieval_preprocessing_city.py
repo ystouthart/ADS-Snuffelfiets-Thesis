@@ -33,8 +33,12 @@ for csv in tqdm(csv_urls):
     df['recording_time'] = pd.to_datetime(df['recording_time'], format="%Y-%m-%d %H:%M:%S")
 
 
-    # Remove all measurements with pm2.5 <0.5 or >150 ug/m3.
-    df = df[~((df["pm2_5"]<0.5)|(df["pm2_5"]>150))]
+    # Remove all measurements with pm2.5 >150 ug/m3.
+    df = df[~(df["pm2_5"]>150)]
+
+
+    # Set all measurements with pm2.5 <1 ug/m3 to 1.
+    df.loc[df["pm2_5"]<1, "pm2_5"] = 1
 
 
     # Remove all measurements with avg. speed >45 km/h (=12.5 m/s)
