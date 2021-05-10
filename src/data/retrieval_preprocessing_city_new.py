@@ -7,13 +7,11 @@ from tqdm import tqdm
 import requests
 import io
 import json
+import re
 
-# Run in case of a rare pyproj error: 
-#pyproj.datadir.set_data_dir('C:\\Users\\Klant\\anaconda3\\envs\\thesis\\Library\\share\\proj')
-
-# Open Utrecht Province polygon.
-provinces = gpd.read_file("../../data/external/B1_Provinciegrenzen_van_Nederland/B1_Provinciegrenzen_van_NederlandPolygon.shp")
-utrecht = provinces[provinces["PROV_NAAM"] == "Utrecht"]
+# Open Utrecht City polygon.
+utrecht = gpd.read_file("../../data/external/WijkBuurtkaart_2020_v1/gem_utrecht.shp")
+utrecht = utrecht.to_crs("EPSG:28992")
 
 
 # Retrieving all .csv-file locations.
@@ -23,11 +21,12 @@ r = requests.get(url)
 data = r.json()
 
 csv_urls = [x['url'] for x in data['result']['resources']]
+jan_2020 = [url for url in csv_urls if re.match(".+2020_01.+", url)]
 #test_csv_urls = csv_urls[:3]
 
 
 # Download each .csv-file, pre-process, and save.
-for csv in tqdm(csv_urls): 
+for csv in tqdm(jan_2020): 
     response = requests.get(csv)
     file_object = io.StringIO(response.content.decode('utf-8'))
     df = pd.read_csv(file_object, usecols=['sensor', 'air_quality_observed_id', 'lon', 'lat',
@@ -54,11 +53,10 @@ for csv in tqdm(csv_urls):
     geo_df['avg_speed_ms'] = geo_df['distance'] / geo_df['delta_time'] # avg(v)=x/t
 
     geo_df = geo_df[~(geo_df['avg_speed_ms']>12.5)]
-    
-    
-    # TODO: Ask about the <5-7.5 km/h requirement.
-    # Remove all measurements where the estimated speed between two measurements is below 5-7.5 km/h (~1.4 m/s).
-    #geo_df = geo_df[~(geo_df["avg_speed_ms"]<1.4)]
+
+
+    # Remove all measurements where the estimated speed between two measurements is below 5-7.5 km/h (~2.0 m/s).
+    geo_df = geo_df[~(geo_df["avg_speed_ms"]<2.0)]
 
 
     # Remove all measurements outside of Utrecht Province.
@@ -66,7 +64,13 @@ for csv in tqdm(csv_urls):
 
 
     # Save as .csv-file
-    geo_df.drop(labels=["geometry", "index_right", "CBS_CODE", "PROV_NAAM", "OBJECTID"], inplace=True, axis=1)
+    geo_df.drop(labels=["geometry",'GM_CODE', 'JRSTATCODE', 'GM_NAAM', 'H2O', 'OAD', 'STED', 'BEV_DICHTH',
+       'AANT_INW', 'AANT_MAN', 'AANT_VROUW', 'P_00_14_JR', 'P_15_24_JR',
+       'P_25_44_JR', 'P_45_64_JR', 'P_65_EO_JR', 'P_ONGEHUWD', 'P_GEHUWD',
+       'P_GESCHEID', 'P_VERWEDUW', 'AANTAL_HH', 'P_EENP_HH', 'P_HH_Z_K',
+       'P_HH_M_K', 'GEM_HH_GR', 'P_WEST_AL', 'P_N_W_AL', 'P_MAROKKO',
+       'P_ANT_ARU', 'P_SURINAM', 'P_TURKIJE', 'P_OVER_NW', 'OPP_TOT',
+       'OPP_LAND', 'OPP_WATER', 'Shape_Leng', 'Shape_Area', 'index_right'], inplace=True, axis=1)    
     geo_df.reset_index(drop=True, inplace=True)
-    filename = "../../data/external/province" + csv.split('/')[-1]
+    filename = "../../data/external/city_jan_2020/" + csv.split('/')[-1]
     geo_df.to_csv(filename, index=False)

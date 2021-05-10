@@ -51,13 +51,11 @@ def VMS_districts_daily(geo_df):
     return export
 
 
-
-
 os.chdir("C:/Users/Klant/Documents/GitHub/ADS-Snuffelfiets-Thesis/data/external/city")
-csvs = glob.glob('*.{}'.format("csv"))
+csv_s = glob.glob('*.{}'.format("csv"))
 
 
-for csv in tqdm(csvs):
+for csv in tqdm(csv_s):
     file_dir1 = "../../interim/district/hourly_" + csv 
     file_dir2 = "../../interim/district/daily_" + csv
 

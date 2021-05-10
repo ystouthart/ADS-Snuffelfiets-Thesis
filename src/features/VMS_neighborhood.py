@@ -52,10 +52,10 @@ def VMS_neighborhood_daily(geo_df):
 
 
 os.chdir("C:/Users/Klant/Documents/GitHub/ADS-Snuffelfiets-Thesis/data/external/city")
-csvs = glob.glob('*.{}'.format("csv"))
+csv_s = glob.glob('*.{}'.format("csv"))
 
 
-for csv in tqdm(csvs):
+for csv in tqdm(csv_s):
     file_dir1 = "../../interim/neighborhood/hourly_" + csv 
     file_dir2 = "../../interim/neighborhood/daily_" + csv
 
