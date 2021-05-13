@@ -18,40 +18,28 @@ utrecht_neigh["virtual_measurement_station"] = utrecht_neigh.representative_poin
 
 
 def VMS_neighborhood_hourly(geo_df):
-    geo_df = gpd.sjoin(geo_df, utrecht_neigh, how="inner", op='within')
+    h_median_pm25 = geo_df[["BU_NAAM", "date", "hour", "pm2_5"]].groupby(["BU_NAAM", "date", "hour"]).median().reset_index()
+    h_median_pm25["datetime"] = pd.to_datetime(h_median_pm25["date"]) + h_median_pm25["hour"].astype('timedelta64[h]')
 
-    geo_df['recording_time'] = pd.to_datetime(df['recording_time'], format="%Y-%m-%d %H:%M:%S")
-    geo_df['date'] = geo_df['recording_time'].dt.date
-    geo_df['hour'] = geo_df['recording_time'].dt.hour
-
-    median_pm25 = geo_df[["BU_NAAM", "date", "hour", "pm2_5"]].groupby(["BU_NAAM", "date", "hour"]).median().reset_index()
-    median_pm25["datetime"] = pd.to_datetime(median_pm25["date"]) + median_pm25["hour"].astype('timedelta64[h]')
-
-    export = median_pm25[["BU_NAAM", "datetime", "pm2_5"]].merge(utrecht_neigh[["BU_NAAM", "virtual_measurement_station"]], on="BU_NAAM")
-    export['x'] = export.virtual_measurement_station.apply(lambda p: p.x)
-    export['y'] = export.virtual_measurement_station.apply(lambda p: p.y)
+    export = h_median_pm25[["BU_NAAM", "datetime", "pm2_5"]].merge(utrecht_neigh[["BU_NAAM", "virtual_measurement_station"]], on="BU_NAAM")
+    export['x'] = export["virtual_measurement_station"].apply(lambda p: p.x)
+    export['y'] = export["virtual_measurement_station"].apply(lambda p: p.y)
 
     return export
 
 
 def VMS_neighborhood_daily(geo_df):
-    geo_df = gpd.sjoin(geo_df, utrecht_neigh, how="inner", op='within')
+    d_median_pm25 = geo_df[["BU_NAAM", "date", "pm2_5"]].groupby(["BU_NAAM", "date"]).median().reset_index()
+    d_median_pm25["datetime"] = pd.to_datetime(d_median_pm25["date"]) 
 
-    geo_df['recording_time'] = pd.to_datetime(df['recording_time'], format="%Y-%m-%d %H:%M:%S")
-    geo_df['date'] = geo_df['recording_time'].dt.date
-    geo_df['hour'] = geo_df['recording_time'].dt.hour
-
-    median_pm25 = geo_df[["BU_NAAM", "date", "hour", "pm2_5"]].groupby(["BU_NAAM", "date"]).median().reset_index()
-    median_pm25["datetime"] = pd.to_datetime(median_pm25["date"]) + median_pm25["hour"].astype('timedelta64[h]')
-
-    export = median_pm25[["BU_NAAM", "datetime", "pm2_5"]].merge(utrecht_neigh[["BU_NAAM", "virtual_measurement_station"]], on="BU_NAAM")
-    export['x'] = export.virtual_measurement_station.apply(lambda p: p.x)
-    export['y'] = export.virtual_measurement_station.apply(lambda p: p.y)
+    export = d_median_pm25[["BU_NAAM", "datetime", "pm2_5"]].merge(utrecht_neigh[["BU_NAAM", "virtual_measurement_station"]], on="BU_NAAM")
+    export['x'] = export["virtual_measurement_station"].apply(lambda p: p.x)
+    export['y'] = export["virtual_measurement_station"].apply(lambda p: p.y)
 
     return export
 
 
-os.chdir("C:/Users/Klant/Documents/GitHub/ADS-Snuffelfiets-Thesis/data/external/city")
+os.chdir("C:/Users/Klant/Documents/GitHub/ADS-Snuffelfiets-Thesis/data/external/city_jan_2020/")
 csv_s = glob.glob('*.{}'.format("csv"))
 
 
@@ -64,6 +52,11 @@ for csv in tqdm(csv_s):
     if len(df) > 1:
         geo_df = gpd.GeoDataFrame(df, geometry=gpd.points_from_xy(df['lon'],df['lat'], crs="EPSG:4326"))
         geo_df = geo_df.to_crs("EPSG:28992")
+        geo_df['recording_time'] = pd.to_datetime(geo_df['recording_time'], format="%Y-%m-%d %H:%M:%S")
+        geo_df = gpd.sjoin(geo_df, utrecht_neigh, how="inner", op='within')
 
-        VMS_neighborhood_hourly(geo_df).to_csv(file_dir1,index=False)
+        geo_df['date'] = geo_df['recording_time'].dt.date
         VMS_neighborhood_daily(geo_df).to_csv(file_dir2,index=False)
+        
+        geo_df['hour'] = geo_df['recording_time'].dt.hour
+        VMS_neighborhood_hourly(geo_df).to_csv(file_dir1,index=False)
