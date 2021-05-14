@@ -68,5 +68,5 @@ for csv in tqdm(csv_urls):
     # Save as .csv-file
     geo_df.drop(labels=["geometry", "index_right", "CBS_CODE", "PROV_NAAM", "OBJECTID"], inplace=True, axis=1)
     geo_df.reset_index(drop=True, inplace=True)
-    filename = "../../data/external/province" + csv.split('/')[-1]
+    filename = "../../data/raw/province" + csv.split('/')[-1]
     geo_df.to_csv(filename, index=False)

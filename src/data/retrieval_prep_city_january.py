@@ -97,5 +97,5 @@ df.reset_index(drop=True, inplace=True)
 
 
 # Save merged dataframe as .csv.
-filename = "../../data/external/city_jan_2020/city_jan_2020.csv"
+filename = "../../data/raw/city_jan_2020/city_jan_2020.csv"
 df.to_csv(filename, index=False)

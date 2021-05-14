@@ -16,7 +16,8 @@ Project Organization
     │
     ├── docs               <- Documentation.
     │
-    ├── models             <- Trained and serialized models, model predictions, or model summaries.
+    ├── output             <- Model output, model predictions, or model summaries.
+    │   
     │
     ├── notebooks          <- Jupyter notebooks. Naming convention is a number (for ordering),
     │                         the creator's initials, and a short `-` delimited description, e.g.

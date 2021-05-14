@@ -72,5 +72,5 @@ for csv in tqdm(csv_urls):
        'P_ANT_ARU', 'P_SURINAM', 'P_TURKIJE', 'P_OVER_NW', 'OPP_TOT',
        'OPP_LAND', 'OPP_WATER', 'Shape_Leng', 'Shape_Area', 'index_right'], inplace=True, axis=1)    
     geo_df.reset_index(drop=True, inplace=True)
-    filename = "../../data/external/city/" + csv.split('/')[-1]
+    filename = "../../data/raw/city/" + csv.split('/')[-1]
     geo_df.to_csv(filename, index=False)
