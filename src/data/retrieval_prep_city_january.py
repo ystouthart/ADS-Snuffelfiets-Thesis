@@ -12,7 +12,7 @@ import geopandas as gpd
 from tqdm import tqdm
 import requests
 import io
-#import json
+import json
 import re
 
 
@@ -97,5 +97,5 @@ df.reset_index(drop=True, inplace=True)
 
 
 # Save merged dataframe as .csv.
-filename = "../../data/raw/city_jan_2020/city_jan_2020.csv"
+filename = "../../data/raw/city_jan_2020/full_city_jan_2020.csv"
 df.to_csv(filename, index=False)

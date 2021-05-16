@@ -5,12 +5,16 @@ library(sp)
 library(sf)
 
 
+
+# Read the City of Utrecht polygon (CBS, 2020)
+utrecht <- st_read(
+  "C:/Users/Klant/Documents/GitHub/ADS-Snuffelfiets-Thesis/data/external/WijkBuurtkaart_2020_v1/gem_utrecht.shp")
+
+
 uniKrig <- function(d, res) {
   #
   # Takes in the VMS Grid data and returns Universal Kriging Raster
   # d = VMS Grid in .csv, res = resolution (= set equal to input data)
-  #
-  
   # Load the VMS grid data as a SpatialPoints DF
   coordinates(data) <- ~x+y
   proj4string(data) <- CRS(st_crs(28992)$wkt)
@@ -21,7 +25,7 @@ uniKrig <- function(d, res) {
   spdf.vgm <- variogram(pm2_5 ~ 1, data[!data_na,])
   
   # Fit a variogram model
-  vgm.mod <- fit.variogram(spdf.vgm, vgm(c("Exp", "Mat", "Sph")), fit.kappa = TRUE)
+  vgm.mod <- fit.variogram(spdf.vgm, vgm(c("Exp", "Mat", "Sph")), fit.kappa = T)
   plot(spdf.vgm, vgm.mod)
   print(vgm.mod)
   
@@ -37,10 +41,35 @@ uniKrig <- function(d, res) {
   return(krig.rst)
 }
 
-
-# Read the City of Utrecht polygon (CBS, 2020)
-utrecht <- st_read(
-  "C:/Users/Klant/Documents/GitHub/ADS-Snuffelfiets-Thesis/data/external/WijkBuurtkaart_2020_v1/gem_utrecht.shp")
+ordKrig <- function(d, res) {
+  #
+  # Takes in the VMS Grid data and returns Universal Kriging Raster
+  # d = VMS Grid in .csv, res = resolution (= set equal to input data)
+  # Load the VMS grid data as a SpatialPoints DF
+  coordinates(data) <- ~x+y
+  proj4string(data) <- CRS(st_crs(28992)$wkt)
+  
+  data_na = is.na(data$pm2_5)
+  
+  # Create a sample variogram
+  spdf.vgm <- variogram(pm2_5 ~ 1, data[!data_na,])
+  
+  # Fit a variogram model
+  vgm.mod <- fit.variogram(spdf.vgm, vgm(c("Exp", "Mat", "Sph")), fit.kappa = T)
+  plot(spdf.vgm, vgm.mod)
+  print(vgm.mod)
+  
+  # Apply Universal Kriging on the empty raster cells.
+  uni_krig <- krige(pm2_5 ~ 1, data[!data_na,], data, vgm.mod)
+  spplot(uni_krig, c("var1.pred")) 
+  
+  
+  # Rasterize the Kriging map - Important: set the same resolution as the input VMS grid data.
+  r <- raster(extent(utrecht), resolution=c(res), crs=st_crs(28992)$wkt)
+  krig.rst <- rasterize(uni_krig, r, "var1.pred")
+  
+  return(krig.rst)
+}
 
 
 data <- read.csv("C:/Users/Klant/Documents/GitHub/ADS-Snuffelfiets-Thesis/data/interim/vms_grid/grid_vms1500.csv") 
@@ -77,4 +106,20 @@ plot(vms125)
 plot(utrecht$geometry, add=TRUE)
 
 
+plot(data$x, data$pm2_5)
 
+coordinates(data) <- ~x+y
+proj4string(data) <- CRS(st_crs(28992)$wkt)
+data_na = is.na(data$pm2_5)
+
+cv <-automap::autoKrige.cv(pm2_5~1,input_data=data[!data_na,])
+ak<-automap::autoKrige(pm2_5~1, input_data=data[!data_na,], new_data=data)
+ak
+plot(ak)
+spplot(data)
+plot(ak$krige_output)
+
+
+ak2<-automap::autoKrige(pm2_5~1, input_data=data[!data_na,], new_data=data)
+plot(ak2)
+plot(ak2$krige_output)
