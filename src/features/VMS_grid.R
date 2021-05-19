@@ -14,19 +14,21 @@ vmsGrid <- function(d, res){
   r_pm25 <- rasterize(d, r, field = "pm2_5", median)
   r_count <- rasterize(d, r, field = "pm2_5", 'count')
   r_unique <- rasterize(d, r, field = "pm2_5", fun=function(x, ...) {length(unique(na.omit(x)))})
+  r_mean <- rasterize(d, r, field = "pm2_5", mean)
+  r_sd <- rasterize(d, r, field = "pm2_5", sd)
   
-  r <- stack(r_pm25, r_count, r_unique)
+  r <- stack(r_pm25, r_count, r_unique, r_mean, r_sd)
 
   spdf = as.data.frame(r,xy=TRUE)
-  spdf <- setNames(spdf, c("x","y","pm2_5", "count", "unique"))
+  spdf <- setNames(spdf, c("x","y","pm2_5", "count", "unique", "mean", "sd"))
   coordinates(spdf)=~x+y
   
   export <- as.data.frame(spdf)
   
-  filename = paste("C:/Users/Klant/Documents/GitHub/ADS-Snuffelfiets-Thesis/data/interim/vms_grid/grid_vms", res, ".csv", sep='')
+  filename = paste("C:/Users/Klant/Documents/GitHub/ADS-Snuffelfiets-Thesis/data/interim/vms_grid/total/grid_vms", res, ".csv", sep='')
   write.csv(export, file=filename, row.names=FALSE)
   
-  print(paste("done: vms ", res, " daily", sep=""))
+  print(paste("done: vms ", res, " total", sep=""))
 }
 
 
@@ -40,17 +42,19 @@ vmsGridDaily <- function(d, res){
   uniq <- unique(unlist(data$recording_timeD))
   
   for (i in 1:length(uniq)){
-    data_1h <- subset(data, recording_timeD == uniq[i])
+    data_1d <- subset(data, recording_timeD == uniq[i])
     r <- raster(extent(utrecht), resolution=c(res), crs=st_crs(28992)$wkt)
     
-    r_pm25 <- rasterize(data_1h, r, field = "pm2_5", median)
-    r_count <- rasterize(data_1h, r, field = "pm2_5", 'count')
-    r_unique <- rasterize(data_1h, r, field = "pm2_5", fun=function(x, ...) {length(unique(na.omit(x)))})
+    r_pm25 <- rasterize(data_1d, r, field = "pm2_5", median)
+    r_count <- rasterize(data_1d, r, field = "pm2_5", 'count')
+    r_unique <- rasterize(data_1d, r, field = "pm2_5", fun=function(x, ...) {length(unique(na.omit(x)))})
+    r_mean <- rasterize(d, r, field = "pm2_5", mean)
+    r_sd <- rasterize(d, r, field = "pm2_5", sd)
     
-    r <- stack(r_pm25, r_count, r_unique)
+    r <- stack(r_pm25, r_count, r_unique, r_mean, r_sd)
     
     spdf = as.data.frame(r,xy=TRUE)
-    spdf <- setNames(spdf, c("x","y","pm2_5", "count", "unique"))
+    spdf <- setNames(spdf, c("x","y","pm2_5", "count", "unique", "mean", "sd"))
     coordinates(spdf)=~x+y
     
     export <- as.data.frame(spdf)
@@ -79,11 +83,12 @@ vmsGridHourly <- function(d, res){
     r_pm25 <- rasterize(data_1h, r, field = "pm2_5", median)
     r_count <- rasterize(data_1h, r, field = "pm2_5", 'count')
     r_unique <- rasterize(data_1h, r, field = "pm2_5", fun=function(x, ...) {length(unique(na.omit(x)))})
-    
-    r <- stack(r_pm25, r_count, r_unique)
+    r_mean <- rasterize(d, r, field = "pm2_5", mean)
+    r_sd <- rasterize(d, r, field = "pm2_5", sd)
+    r <- stack(r_pm25, r_count, r_unique, r_mean, r_sd)
     
     spdf = as.data.frame(r,xy=TRUE)
-    spdf <- setNames(spdf, c("x","y","pm2_5", "count", "unique"))
+    spdf <- setNames(spdf, c("x","y","pm2_5", "count", "unique", "mean", "sd"))
     coordinates(spdf)=~x+y
     
     export <- as.data.frame(spdf)
@@ -110,7 +115,6 @@ data <- spTransform(data, CRS(st_crs(28992)$wkt))
 
 
 # Create VMS Grids
-
 # Total
 vmsGrid(data, 1500)
 vmsGrid(data, 1000)
