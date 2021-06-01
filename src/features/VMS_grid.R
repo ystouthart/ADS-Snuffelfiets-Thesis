@@ -3,6 +3,13 @@ library(raster)
 library(gstat)
 library(sp)
 library(sf)
+library(dplyr)
+
+###############
+#  VMS_grid.R: Aggregates the Snuffelfiets data on a regular grid. For three temporal resolutions: regular (full period), daily and hourly.
+#  Input: Preprocessed Snuffelfiets data (output from retrieval_prep_city_january.py and select_period.py).
+#  Outputs: A single CSV file with all filled raster cells (so, no empty cells), for all time periods (if applicable).
+###############
 
 
 vmsGrid <- function(d, res){
@@ -22,6 +29,7 @@ vmsGrid <- function(d, res){
 
   spdf = as.data.frame(r,xy=TRUE)
   spdf <- setNames(spdf, c("x", "y", "pm2_5_med", "pm2_5_mean", "count", "unique", "se", "sd"))
+  spdf <- spdf[!is.na(spdf$pm2_5_mean),] # exclude empty cells 
   
   filename = paste("C:/Users/Klant/Documents/GitHub/ADS-Snuffelfiets-Thesis/data/interim/vms_grid/total/grid_vms", res, ".csv", sep='')
   write.csv(spdf, file=filename, row.names=FALSE)
@@ -39,6 +47,8 @@ vmsGridDaily <- function(d, res){
   d$recording_timeD <- as.POSIXct(trunc(d$recording_time, units = "days"),format="%Y-%m-%d %H:%M:%S")  
   uniq <- unique(unlist(d$recording_timeD))
   
+  datalist = list()
+  
   for (i in 1:length(uniq)){
     data_1d <- subset(d, recording_timeD == uniq[i])
     r <- raster(extent(utrecht), resolution=c(res), crs=crs(utrecht))
@@ -54,12 +64,16 @@ vmsGridDaily <- function(d, res){
     spdf = as.data.frame(r,xy=TRUE)
     spdf <- setNames(spdf, c("x", "y", "pm2_5_med", "pm2_5_mean", "count", "unique", "se", "sd"))
     spdf$date <- uniq[i]
+    spdf <- spdf[!is.na(spdf$pm2_5_mean),] # exclude empty cells 
     
-    filename = paste("C:/Users/Klant/Documents/GitHub/ADS-Snuffelfiets-Thesis/data/interim/vms_grid/daily/", res, "/grid_vms", res, "_", format(uniq[i], "%m%d"), ".csv", sep='')
-    write.csv(spdf, file=filename, row.names=FALSE)
-    
+    datalist[[i]] <- spdf
     print(paste("done: vms ", res, " ", uniq[i], " ", i, "/", length(uniq), sep="")) 
   }
+  
+  merge <- dplyr::bind_rows(datalist)
+  filename = paste("C:/Users/Klant/Documents/GitHub/ADS-Snuffelfiets-Thesis/data/interim/vms_grid/daily/", res, "/full_grid_vms", res, ".csv", sep='')
+  write.csv(merge, file=filename, row.names=FALSE)
+  print("saved total")
 } 
 
 
@@ -71,6 +85,8 @@ vmsGridHourly <- function(d, res){
   d$recording_time <- as.POSIXct(d$recording_time,format="%Y-%m-%d %H:%M:%S")
   d$recording_timeH <- as.POSIXct(trunc(d$recording_time, units = "hours"),format="%Y-%m-%d %H:%M:%S")  
   uniq <- unique(unlist(d$recording_timeH))
+  
+  datalist = list()
   
   for (i in 1:length(uniq)){
     data_1h <- subset(d, recording_timeH == uniq[i])
@@ -87,20 +103,23 @@ vmsGridHourly <- function(d, res){
     spdf = as.data.frame(r,xy=TRUE)
     spdf <- setNames(spdf, c("x", "y", "pm2_5_med", "pm2_5_mean", "count", "unique", "se", "sd"))
     spdf$date <- uniq[i]
+
+    spdf <- spdf[!is.na(spdf$pm2_5_mean),] # exclude empty cells 
     
-    filename = paste("C:/Users/Klant/Documents/GitHub/ADS-Snuffelfiets-Thesis/data/interim/vms_grid/hourly/", res, "/grid_vms", res, "_", format(uniq[i], "%m%d-%H"), ".csv", sep='')
-    write.csv(spdf, file=filename, row.names=FALSE)
-    
-    print(paste("done: vms ", res, " ", uniq[i], " ", i, "/", length(uniq), sep="")) 
+    datalist[[i]] <- spdf
   }
+  
+  merge <- dplyr::bind_rows(datalist)
+  filename = paste("C:/Users/Klant/Documents/GitHub/ADS-Snuffelfiets-Thesis/data/interim/vms_grid/hourly/", res, "/full_grid_vms", res, ".csv", sep='')
+  write.csv(merge, file=filename, row.names=FALSE)
+  print("saved total")
 } 
 
 
 
 
 # Read the City of Utrecht polygon (CBS, 2020)
-utrecht <- st_read(
-  "C:/Users/Klant/Documents/GitHub/ADS-Snuffelfiets-Thesis/data/external/WijkBuurtkaart_2020_v1/gem_utrecht.shp")
+utrecht <- st_read("C:/Users/Klant/Documents/GitHub/ADS-Snuffelfiets-Thesis/data/external/WijkBuurtkaart_2020_v1/gem_utrecht.shp")
 
 # Read the SF data for week 2 and 3, year 2020, during weekdays and daytime, and transform to EPSG:28992.
 data <- read.csv("C:/Users/Klant/Documents/GitHub/ADS-Snuffelfiets-Thesis/data/raw/city_jan_2020/data_selection_bbox.csv") 
