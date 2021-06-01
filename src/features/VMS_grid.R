@@ -22,12 +22,9 @@ vmsGrid <- function(d, res){
 
   spdf = as.data.frame(r,xy=TRUE)
   spdf <- setNames(spdf, c("x", "y", "pm2_5_med", "pm2_5_mean", "count", "unique", "se", "sd"))
-  coordinates(spdf)=~x+y
-  
-  export <- as.data.frame(spdf)
   
   filename = paste("C:/Users/Klant/Documents/GitHub/ADS-Snuffelfiets-Thesis/data/interim/vms_grid/total/grid_vms", res, ".csv", sep='')
-  write.csv(export, file=filename, row.names=FALSE)
+  write.csv(spdf, file=filename, row.names=FALSE)
   
   print(paste("done: vms ", res, " total", sep=""))
 }
@@ -56,12 +53,10 @@ vmsGridDaily <- function(d, res){
     
     spdf = as.data.frame(r,xy=TRUE)
     spdf <- setNames(spdf, c("x", "y", "pm2_5_med", "pm2_5_mean", "count", "unique", "se", "sd"))
-    coordinates(spdf)=~x+y
-    
-    export <- as.data.frame(spdf)
+    spdf$date <- uniq[i]
     
     filename = paste("C:/Users/Klant/Documents/GitHub/ADS-Snuffelfiets-Thesis/data/interim/vms_grid/daily/", res, "/grid_vms", res, "_", format(uniq[i], "%m%d"), ".csv", sep='')
-    write.csv(export, file=filename, row.names=FALSE)
+    write.csv(spdf, file=filename, row.names=FALSE)
     
     print(paste("done: vms ", res, " ", uniq[i], " ", i, "/", length(uniq), sep="")) 
   }
@@ -91,12 +86,10 @@ vmsGridHourly <- function(d, res){
     
     spdf = as.data.frame(r,xy=TRUE)
     spdf <- setNames(spdf, c("x", "y", "pm2_5_med", "pm2_5_mean", "count", "unique", "se", "sd"))
-    coordinates(spdf)=~x+y
-    
-    export <- as.data.frame(spdf)
+    spdf$date <- uniq[i]
     
     filename = paste("C:/Users/Klant/Documents/GitHub/ADS-Snuffelfiets-Thesis/data/interim/vms_grid/hourly/", res, "/grid_vms", res, "_", format(uniq[i], "%m%d-%H"), ".csv", sep='')
-    write.csv(export, file=filename, row.names=FALSE)
+    write.csv(spdf, file=filename, row.names=FALSE)
     
     print(paste("done: vms ", res, " ", uniq[i], " ", i, "/", length(uniq), sep="")) 
   }
