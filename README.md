@@ -1,7 +1,7 @@
 ADS Snuffelfiets Thesis Project
 ==============================
-
- Snuffelfiets Thesis Project in partial fulfilment of the Applied Data Science Master's programme at Utrecht University.
+## Mapping Air Quality using Volunteer-Generated Sensor Data
+Thesis Project in partial fulfilment of the Applied Data Science Master's programme at Utrecht University.
 
 Project Organization
 ------------

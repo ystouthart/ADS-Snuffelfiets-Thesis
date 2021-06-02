@@ -1,35 +1,29 @@
+###
+###  regression_features.R
+###
+###  Combines the aggregated Snuffelfiets measurements (dependent variable) with the independent features.
+###  The independent features are both Spatial (e.g. distance to roads) and Temporal (e.g. humidity, time).
+###
+###  Input: Aggregated & rasterized Snuffelfiets data (output from VMS_grid.R).
+###  Output: A single CSV with all features needed for Spatio Temporal Regression Kriging.
+###
+
 rm(list=ls())
 library(raster)
 library(gstat)
 library(sp)
 library(sf)
 
-##############################################################################################################
-#  regression_features.R: Combines the aggregated Snuffelfiets measurements (dependent variable) with the independent features.
-#  The independent features are both Spatial (e.g. distance to roads) and Temporal (e.g. humidity, time).
-#
-#  Input: Aggregated & rasterized Snuffelfiets data (output from VMS_grid.R).
-#  Output: A single CSV with all features needed for Spatio Temporal Regression Kriging.
-##############################################################################################################
-
 
 # Important: Set the resolution of the aggregated input data.
-res <- 100
+res <- 1000
 
 # Open the City of Utrecht polygon (CBS, 2020).
 utrecht <- st_read("C:/Users/Klant/Documents/GitHub/ADS-Snuffelfiets-Thesis/data/external/WijkBuurtkaart_2020_v1/gem_utrecht.shp")
 
 
-########
 
-
-# Create the prediction grid
-pred_grid <- raster(extent(utrecht), resolution=c(res), crs=projection(utrecht)) 
-sp_pred_grid <- SpatialPoints(pred_grid)
-proj4string(sp_pred_grid) <- proj4string(pred_grid)
-
-
-########
+###################################################################
 
 
 # Create the spatial regression predictors:
@@ -37,6 +31,7 @@ r <- raster(extent(utrecht), resolution=c(res), crs=projection(utrecht))
 
 # Address density and population density
 neighborhoods <- st_read("C:/Users/Klant/Documents/GitHub/ADS-Snuffelfiets-Thesis/data/external/WijkBuurtkaart_2020_v1/buurt_2020_v1.shp")
+
 address_density <- rasterize(neighborhoods, r, field = "OAD", mean)
 values(address_density)[values(address_density)<0] <- 0
 
@@ -65,7 +60,7 @@ close_to_rail <- (distance(rail)<=250)
 
 
 
-########
+###################################################################
 
 
 
@@ -88,18 +83,18 @@ degree_to_dir <- function(deg){
 }
 
 knmi$DD[!(knmi$DD==990|knmi$DD==00)] <- degree_to_dir(knmi$DD[!(knmi$DD==990|knmi$DD==00)])
-knmi$DD[knmi$DD==990] <- "VAR"
-knmi$DD[knmi$DD==0] <- "NO"
+knmi$DD[knmi$DD==990] <- "VAR" # variable
+knmi$DD[knmi$DD==0] <- "NO" # no wind
 
 
 
-########
+###################################################################
 
 
 # Combine dependents and independents:
 
 # Load the aggregated Snuffelfiets measurements (same resolution as res!!!)
-data <- read.csv('C:/Users/Klant/Documents/GitHub/ADS-Snuffelfiets-Thesis/data/interim/vms_grid/hourly/100/full_grid_vms100.csv')
+data <- read.csv('C:/Users/Klant/Documents/GitHub/ADS-Snuffelfiets-Thesis/data/interim/vms_grid/hourly/1000/full_grid_vms1000.csv')
 coordinates(data) <- ~x+y
 projection(data) <- projection(utrecht) # set the projection equal
 
@@ -117,10 +112,21 @@ data$rail <- as.factor(data$rail)
 data <- merge(data, knmi, by="date")
 
 
-########
+
+###################################################################
 
 
-# Save as CSV file
+
+# Save as Regression Features CSV file
 filename = paste("C:/Users/Klant/Documents/GitHub/ADS-Snuffelfiets-Thesis/data/interim/regression_features/features", res, ".csv", sep='')
 write.csv(data, file=filename, row.names=FALSE)
 
+
+# Save accompanying Prediction Grid for Kriging
+pred_grid <- raster(extent(utrecht), resolution=c(res), crs=projection(utrecht)) 
+pred_grid_sp <- SpatialPoints(pred_grid)
+proj4string(pred_grid_sp) <- proj4string(pred_grid)
+pred_grid <- as.data.frame(pred_grid_sp,xy=TRUE)
+
+filename = paste("C:/Users/Klant/Documents/GitHub/ADS-Snuffelfiets-Thesis/data/interim/regression_features/pred_grid", res, ".csv", sep='')
+write.csv(pred_grid, file=filename, row.names=FALSE)

@@ -1,15 +1,19 @@
+###
+###  VMS_grid.R
+###
+###  Aggregates the Snuffelfiets data on a regular grid. For three temporal resolutions: regular (full period), daily and hourly.
+###
+###  Input: Preprocessed Snuffelfiets data (output from retrieval_prep_city_january.py and select_period.py).
+###  Outputs: A single CSV file with all filled raster cells (so, no empty cells), for all time periods (if applicable).
+###
+
+
 rm(list=ls())
 library(raster)
 library(gstat)
 library(sp)
 library(sf)
 library(dplyr)
-
-###############
-#  VMS_grid.R: Aggregates the Snuffelfiets data on a regular grid. For three temporal resolutions: regular (full period), daily and hourly.
-#  Input: Preprocessed Snuffelfiets data (output from retrieval_prep_city_january.py and select_period.py).
-#  Outputs: A single CSV file with all filled raster cells (so, no empty cells), for all time periods (if applicable).
-###############
 
 
 vmsGrid <- function(d, res){

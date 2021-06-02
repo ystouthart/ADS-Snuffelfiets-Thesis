@@ -1,14 +1,16 @@
 ###
-### Keep data of week 2 and 3 (2020-01-06 - 2020-01-20) during weekdays and daytime (7:00 - 00:00)
-### TODO: Merge with retrieval_prep_city_january.py
+### select_period.py
+### 
+### Creates a subset of the full Snuffelfiets data for further analysis
 ###
+
 
 import pandas as pd
 import numpy as np
 import geopandas as gpd
 
 
-df = pd.read_csv("../../data/raw/city_jan_2020/full_city_jan_2020_bbox.csv")
+df = pd.read_csv("../../data/raw/full_sf_bbox.csv")
 df['recording_time'] = pd.to_datetime(df['recording_time'], format="%Y-%m-%d %H:%M:%S")
 
 df["week"] = df["recording_time"].dt.isocalendar().week
