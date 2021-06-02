@@ -38,8 +38,7 @@ jan_2020 = [url for url in csv_urls if re.match(".+2020_01.+", url)]
 for csv in tqdm(jan_2020): 
     response = requests.get(csv)
     file_object = io.StringIO(response.content.decode('utf-8'))
-    df = pd.read_csv(file_object, usecols=['sensor', 'air_quality_observed_id', 'lon', 'lat',
-     'recording_time', 'trip_sequence', 'humidity', 'pm2_5', 'pressure', 'temperature'])
+    df = pd.read_csv(file_object, usecols=['sensor', 'lon', 'lat', 'recording_time', 'pm2_5'])
     df['recording_time'] = pd.to_datetime(df['recording_time'], format="%Y-%m-%d %H:%M:%S")
 
 
