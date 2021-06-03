@@ -1,4 +1,3 @@
-
 ###
 ###  st_regression_features.R
 ###
@@ -19,7 +18,7 @@ utrecht <- st_read("C:/Users/Klant/Documents/GitHub/ADS-Snuffelfiets-Thesis/data
 
 
 # Load the Regression Features
-d <- read.csv('C:/Users/Klant/Documents/GitHub/ADS-Snuffelfiets-Thesis/data/interim/regression_features/features1000.csv')
+d <- read.csv('C:/Users/Klant/Documents/GitHub/ADS-Snuffelfiets-Thesis/data/processed/regression_features/features1500.csv')
 coordinates(d) <- ~x+y
 projection(d) <- projection(utrecht)
 
@@ -51,7 +50,7 @@ vms <- SpatialPoints(pred_df@coords,crs(pred_df))
 stdf <- STIDF(sp=vms, time=time_list, data=res_df)
 
 # Create Empirical ST Variogram
-vv=variogram(res~1, data=stdf, tunit="hours", tlags=0:6, boundaries=c(500, 1000, 1500, 2000, 2500, 3000, 3500, 4000, 4500))
+vv=variogram(res~1, data=stdf, tunit="hours", tlags=0:6)
 
 # waaaaaaa
 plot(vv)

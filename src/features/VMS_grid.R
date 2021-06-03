@@ -35,7 +35,7 @@ vmsGrid <- function(d, res){
   spdf <- setNames(spdf, c("x", "y", "pm2_5_med", "pm2_5_mean", "count", "unique", "se", "sd"))
   spdf <- spdf[!is.na(spdf$pm2_5_mean),] # exclude empty cells 
   
-  filename = paste("C:/Users/Klant/Documents/GitHub/ADS-Snuffelfiets-Thesis/data/interim/vms_grid/total/grid_vms", res, ".csv", sep='')
+  filename = paste("C:/Users/Klant/Documents/GitHub/ADS-Snuffelfiets-Thesis/data/processed/vms_grid/total/grid_vms", res, ".csv", sep='')
   write.csv(spdf, file=filename, row.names=FALSE)
   
   print(paste("done: vms ", res, " total", sep=""))
@@ -75,7 +75,7 @@ vmsGridDaily <- function(d, res){
   }
   
   merge <- dplyr::bind_rows(datalist)
-  filename = paste("C:/Users/Klant/Documents/GitHub/ADS-Snuffelfiets-Thesis/data/interim/vms_grid/daily/", res, "/full_grid_vms", res, ".csv", sep='')
+  filename = paste("C:/Users/Klant/Documents/GitHub/ADS-Snuffelfiets-Thesis/data/processed/vms_grid/daily/", res, "/full_grid_vms", res, ".csv", sep='')
   write.csv(merge, file=filename, row.names=FALSE)
   print("saved total")
 } 
@@ -114,7 +114,7 @@ vmsGridHourly <- function(d, res){
   }
   
   merge <- dplyr::bind_rows(datalist)
-  filename = paste("C:/Users/Klant/Documents/GitHub/ADS-Snuffelfiets-Thesis/data/interim/vms_grid/hourly/", res, "/full_grid_vms", res, ".csv", sep='')
+  filename = paste("C:/Users/Klant/Documents/GitHub/ADS-Snuffelfiets-Thesis/data/processed/vms_grid/hourly/", res, "/full_grid_vms", res, ".csv", sep='')
   write.csv(merge, file=filename, row.names=FALSE)
   print("saved total")
 } 
@@ -126,7 +126,7 @@ vmsGridHourly <- function(d, res){
 utrecht <- st_read("C:/Users/Klant/Documents/GitHub/ADS-Snuffelfiets-Thesis/data/external/WijkBuurtkaart_2020_v1/gem_utrecht.shp")
 
 # Read the SF data for week 2 and 3, year 2020, during weekdays and daytime, and transform to EPSG:28992.
-data <- read.csv("C:/Users/Klant/Documents/GitHub/ADS-Snuffelfiets-Thesis/data/raw/city_jan_2020/data_selection_bbox.csv") 
+data <- read.csv("C:/Users/Klant/Documents/GitHub/ADS-Snuffelfiets-Thesis/data/interim/data_selection_bbox.csv") 
 coordinates(data) <- ~lon+lat
 proj4string(data) <- CRS(st_crs(4326)$wkt)
 data <- spTransform(data, crs(utrecht))

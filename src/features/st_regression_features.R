@@ -16,7 +16,7 @@ library(sf)
 
 
 # Important: Set the resolution of the aggregated input data.
-res <- 1000
+res <- 1500
 
 # Open the City of Utrecht polygon (CBS, 2020).
 utrecht <- st_read("C:/Users/Klant/Documents/GitHub/ADS-Snuffelfiets-Thesis/data/external/WijkBuurtkaart_2020_v1/gem_utrecht.shp")
@@ -94,7 +94,7 @@ knmi$DD[knmi$DD==0] <- "NO" # no wind
 # Combine dependents and independents:
 
 # Load the aggregated Snuffelfiets measurements (same resolution as res!!!)
-data <- read.csv('C:/Users/Klant/Documents/GitHub/ADS-Snuffelfiets-Thesis/data/interim/vms_grid/hourly/1000/full_grid_vms1000.csv')
+data <- read.csv('C:/Users/Klant/Documents/GitHub/ADS-Snuffelfiets-Thesis/data/processed/vms_grid/hourly/1500/full_grid_vms1500.csv')
 coordinates(data) <- ~x+y
 projection(data) <- projection(utrecht) # set the projection equal
 
@@ -118,7 +118,7 @@ data <- merge(data, knmi, by="date")
 
 
 # Save as Regression Features CSV file
-filename = paste("C:/Users/Klant/Documents/GitHub/ADS-Snuffelfiets-Thesis/data/interim/regression_features/features", res, ".csv", sep='')
+filename = paste("C:/Users/Klant/Documents/GitHub/ADS-Snuffelfiets-Thesis/data/processed/regression_features/features", res, ".csv", sep='')
 write.csv(data, file=filename, row.names=FALSE)
 
 
@@ -128,5 +128,5 @@ pred_grid_sp <- SpatialPoints(pred_grid)
 proj4string(pred_grid_sp) <- proj4string(pred_grid)
 pred_grid <- as.data.frame(pred_grid_sp,xy=TRUE)
 
-filename = paste("C:/Users/Klant/Documents/GitHub/ADS-Snuffelfiets-Thesis/data/interim/regression_features/pred_grid", res, ".csv", sep='')
+filename = paste("C:/Users/Klant/Documents/GitHub/ADS-Snuffelfiets-Thesis/data/processed/regression_features/pred_grid", res, ".csv", sep='')
 write.csv(pred_grid, file=filename, row.names=FALSE)
