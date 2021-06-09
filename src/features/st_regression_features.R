@@ -13,23 +13,23 @@ library(raster)
 library(gstat)
 library(sp)
 library(sf)
+library(osmenrich)
 
 
 # Important: Set the resolution of the aggregated input data.
-res <- 1500
+res <- 100
 
 # Open the City of Utrecht polygon (CBS, 2020).
 utrecht <- st_read("C:/Users/Klant/Documents/GitHub/ADS-Snuffelfiets-Thesis/data/external/WijkBuurtkaart_2020_v1/gem_utrecht.shp")
-
 
 
 ###################################################################
 
 
 # Create the spatial regression predictors:
-r <- raster(extent(utrecht), resolution=c(res), crs=projection(utrecht)) 
 
 # Address density and population density
+r <- raster(extent(utrecht), resolution=c(res), crs=projection(utrecht)) 
 neighborhoods <- st_read("C:/Users/Klant/Documents/GitHub/ADS-Snuffelfiets-Thesis/data/external/WijkBuurtkaart_2020_v1/buurt_2020_v1.shp")
 
 address_density <- rasterize(neighborhoods, r, field = "OAD", mean)
@@ -47,21 +47,17 @@ easting <- rasterize(headings, r, field="east")
 northing <- rasterize(headings, r, field="north")
 
 # Proximity to main roads (A/N-type)
-roads <- shapefile("C:/Users/Klant/Documents/GitHub/ADS-Snuffelfiets-Thesis/data/external/01-12-2020/NWB-Light/nwb-light.shp")
-roads_r <- rasterize(roads, r, field="COUNT")
-values(roads_r)[values(roads_r)>0] <- 1
-close_to_road <- (distance(roads_r)<=500) # Label all area's closer than 500m to main roads
+roads <- raster("C:/Users/Klant/Documents/GitHub/ADS-Snuffelfiets-Thesis/data/external/road_distance_utrecht.TIF")
+values(roads)[values(roads)<=100] <- 1
+values(roads)[values(roads)>100] <- 0 # Label all area's closer than 100m to main roads
 
 # Proximity to rail roads
-rail <- raster("C:/Users/Klant/Documents/GitHub/ADS-Snuffelfiets-Thesis/data/external/rail_utrecht.TIF")
-values(rail)[values(rail)>0] <- 1
-values(rail)[values(rail)==0] <- NA
-close_to_rail <- (distance(rail)<=250)
-
+rail <- raster("C:/Users/Klant/Documents/GitHub/ADS-Snuffelfiets-Thesis/data/external/rail_distance_utrecht.TIF")
+values(rail)[values(rail)<=100] <- 1
+values(rail)[values(rail)>100] <- 0
 
 
 ###################################################################
-
 
 
 # Create the temporal regression predictors:
@@ -87,14 +83,14 @@ knmi$DD[knmi$DD==990] <- "VAR" # variable
 knmi$DD[knmi$DD==0] <- "NO" # no wind
 
 
-
 ###################################################################
 
 
 # Combine dependents and independents:
 
 # Load the aggregated Snuffelfiets measurements (same resolution as res!!!)
-data <- read.csv('C:/Users/Klant/Documents/GitHub/ADS-Snuffelfiets-Thesis/data/processed/vms_grid/hourly/1500/full_grid_vms1500.csv')
+filename <- paste("C:/Users/Klant/Documents/GitHub/ADS-Snuffelfiets-Thesis/data/processed/vms_grid/hourly/", res, "/f_full_grid_vms", res, ".csv", sep="")
+data <- read.csv(filename)
 coordinates(data) <- ~x+y
 projection(data) <- projection(utrecht) # set the projection equal
 
@@ -103,23 +99,46 @@ data$pop_density <- extract(pop_density, data)
 data$address_density <- extract(address_density, data)
 data$easting <- extract(easting, data)
 data$northing <- extract(northing, data)
-data$road <- extract(close_to_road, data)
+data$road <- extract(roads, data)
 data$road <- as.factor(data$road)
-data$rail <- extract(close_to_rail, data)
+data$rail <- extract(rail, data)
 data$rail <- as.factor(data$rail)
 
 # Add the Temporal predictors
 data <- merge(data, knmi, by="date")
 
 
-
 ###################################################################
 
+
+# Using osmenrich for adding spatial features from OpenStreetMap:
+
+
+sf_data <- st_as_sf(data.frame(round(coordinates(r),1)), coords = c("x", "y"), crs = 28992)
+
+sf_data_enriched <- sf_data %>%
+  enrich_osm(
+    name = "traffic_signals",
+    key = "highway",
+    value = "traffic_signals",
+    r = (res/2)
+  )
+
+st_crs(sf_data_enriched) <- st_crs(data)
+
+
+data <- st_as_sf(data, crs=28992)
+spat_join <- st_join(data, sf_data_enriched)
+
+
+###################################################################
+###################################################################
 
 
 # Save as Regression Features CSV file
 filename = paste("C:/Users/Klant/Documents/GitHub/ADS-Snuffelfiets-Thesis/data/processed/regression_features/features", res, ".csv", sep='')
-write.csv(data, file=filename, row.names=FALSE)
+st_write(spat_join, filename, layer_options = "GEOMETRY=AS_XY", append=FALSE)
+
 
 
 # Save accompanying Prediction Grid for Kriging

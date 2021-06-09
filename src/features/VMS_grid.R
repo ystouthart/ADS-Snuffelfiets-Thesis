@@ -92,9 +92,10 @@ vmsGridHourly <- function(d, res){
   
   datalist = list()
   
+  r <- raster(extent(utrecht), resolution=c(res), crs=crs(utrecht))
+  
   for (i in 1:length(uniq)){
     data_1h <- subset(d, recording_timeH == uniq[i])
-    r <- raster(extent(utrecht), resolution=c(res), crs=crs(utrecht))
     r_pm25_med <- rasterize(data_1h, r, field = "pm2_5", median)
     r_pm25_mean <- rasterize(data_1h, r, field = "pm2_5", mean)
     r_count <- rasterize(data_1h, r, field = "pm2_5", 'count')
@@ -104,7 +105,7 @@ vmsGridHourly <- function(d, res){
     
     r <- stack(r_pm25_med, r_pm25_mean, r_count, r_unique, r_se, r_sd)
     
-    spdf = as.data.frame(r,xy=TRUE)
+    spdf = as.data.frame(r,xy=TRUE,centroids=TRUE)
     spdf <- setNames(spdf, c("x", "y", "pm2_5_med", "pm2_5_mean", "count", "unique", "se", "sd"))
     spdf$date <- uniq[i]
 
@@ -160,3 +161,60 @@ vmsGridHourly(data, 125)
 vmsGridHourly(data, 100)
 vmsGridHourly(data, 50)
 vmsGridHourly(data, 25)
+
+
+
+
+
+
+
+
+
+
+
+##################### STFDF ######################
+
+vmsGridHourlyF <- function(d, res){
+  #
+  # Takes in the full Snuffelfiets SPDF, and saves a SPDF with aggregated median pm2.5 values per hour in .csv.
+  # d = SPDF, res = raster resolution
+  #
+  d$recording_time <- as.POSIXct(d$recording_time,format="%Y-%m-%d %H:%M:%S")
+  d$recording_timeH <- as.POSIXct(trunc(d$recording_time, units = "hours"),format="%Y-%m-%d %H:%M:%S")  
+  uniq <- unique(unlist(d$recording_timeH))
+  
+  datalist = list()
+  
+  
+  
+  for (i in 1:length(uniq)){
+    r <- raster(extent(utrecht), resolution=c(res), crs=crs(utrecht))
+    data_1h <- subset(d, recording_timeH == uniq[i])
+    r_pm25_med <- rasterize(data_1h, r, field = "pm2_5", median)
+    r_pm25_mean <- rasterize(data_1h, r, field = "pm2_5", mean)
+    r_count <- rasterize(data_1h, r, field = "pm2_5", 'count')
+    r_unique <- rasterize(data_1h, r, field = "sensor", fun=function(x, ...) {length(unique(na.omit(x)))})
+    r_se <- rasterize(data_1h, r, field = "pm2_5", fun=function(x, ...) {sd(x)/sqrt(length(x))})
+    r_sd <- rasterize(data_1h, r, field = "pm2_5", sd)
+    
+    r <- stack(r_pm25_med, r_pm25_mean, r_count, r_unique, r_se, r_sd)
+    
+    spdf = as.data.frame(r,xy=TRUE, centroids=TRUE)
+    spdf <- setNames(spdf, c("x", "y", "pm2_5_med", "pm2_5_mean", "count", "unique", "se", "sd"))
+    spdf$date <- uniq[i]
+    
+    #spdf <- spdf[!is.na(spdf$pm2_5_mean),] # exclude empty cells 
+    
+    datalist[[i]] <- spdf
+    #print(paste("added",i,"/",length(uniq), sep=" "))
+  }
+  
+  merge <- dplyr::bind_rows(datalist)
+  merge$x <- round(merge$x, 1) # fixes weird bug where same grid-cells get slightly different coordinates.
+  merge$y <- round(merge$y, 1)
+  filename = paste("C:/Users/Klant/Documents/GitHub/ADS-Snuffelfiets-Thesis/data/processed/vms_grid/hourly/", res, "/f_full_grid_vms", res, ".csv", sep='')
+  write.csv(merge, file=filename, row.names=FALSE)
+  print("saved f total")
+} 
+
+vmsGridHourlyF(data, 100)

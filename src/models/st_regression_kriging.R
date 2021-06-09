@@ -12,14 +12,15 @@ library(raster)
 library(gstat)
 library(sp)
 library(sf)
+library(spacetime)
 
 utrecht <- st_read("C:/Users/Klant/Documents/GitHub/ADS-Snuffelfiets-Thesis/data/external/WijkBuurtkaart_2020_v1/gem_utrecht.shp")
 
 
 
 # Load the Regression Features
-d <- read.csv('C:/Users/Klant/Documents/GitHub/ADS-Snuffelfiets-Thesis/data/processed/regression_features/features1500.csv')
-coordinates(d) <- ~x+y
+d <- read.csv('C:/Users/Klant/Documents/GitHub/ADS-Snuffelfiets-Thesis/data/processed/regression_features/features100.csv')
+coordinates(d) <- ~X+Y
 projection(d) <- projection(utrecht)
 
 # Set factors
@@ -29,7 +30,7 @@ d$HH <- as.factor(d$HH)
 d$DD <- as.factor(d$DD)
 
 # Train the model
-lm <- lm(pm2_5_mean ~ address_density + pop_density + road + rail + easting + northing + DD + HH + FH + `T` + P + U, data=d, na.action="na.exclude")
+lm <- lm(pm2_5_mean ~ address_density + pop_density + road + rail + easting + northing + DD + HH + FH + `T` + P + U + traffic_signals, data=d, na.action="na.exclude")
 summary(lm)
 
 # Generate predictions
@@ -39,26 +40,33 @@ lm_pred <- predict.lm(lm, se.fit=T)
 pred_df <- data.frame("date"=d$date, "x"=d@coords[,1], "y"=d@coords[,2], "pm2_5"=d$pm2_5_mean, "pred"=lm_pred[["fit"]], "se.fit"=lm_pred[["se.fit"]])
 pred_df$res <- pred_df$pm2_5 - pred_df$pred
 pred_df$date <- as.POSIXct(pred_df$date)
+pred_df <- pred_df[order(pred_df$date),]
 coordinates(pred_df) <- ~x+y
 projection(pred_df) <- projection(utrecht)
 
 # Create Spatio-Temporal Dataframe of Residuals
-time_list <- (pred_df$date) 
+locs <-  SpatialPoints(unique(pred_df@coords),crs(pred_df))
+time_list <- unique(pred_df$date)
 res_df <- data.frame("res"=pred_df$res)
-vms <- SpatialPoints(pred_df@coords,crs(pred_df)) 
+stdf <- STFDF(sp=locs, time=time_list, data=res_df)
 
-stdf <- STIDF(sp=vms, time=time_list, data=res_df)
 
 # Create Empirical ST Variogram
-vv=variogram(res~1, data=stdf, tunit="hours", tlags=0:6)
-
-# waaaaaaa
+vv=variogram(res~1, stdf, cressie=F, boundaries=c(500,1000, 1500, 2000, 2500, 3000, 3500, 4000, 4500))
 plot(vv)
 plot(vv, map=F)
+plot(vv, wireframe=T)
+vv
+
+# Create Empirical ST Variogram
+vv1=variogram(res~1, stdf, cressie=F)
+plot(vv1)
+plot(vv1, map=F)
+plot(vv1, wireframe=T)
+vv
 
 
-
-
+# Fitting the ST Variogram model
 
 # metric
 metricVgm <- vgmST("metric", joint=vgm(psill=100, model="Sph", range=2000, nugget=0), stAni=25) 
@@ -116,3 +124,28 @@ plot(vv, list(fitsumVgm, fitmetricVgm, fitsepVgm), all=T, wireframe=T,
      xlab=list("h (m)", rot=30), ylab=list("u (hours)", rot=-35), zlab=expression(~gamma)) 
 
 extractPar(fitsumVgm)
+
+# kriging preparations
+pred_grid <- read.csv('C:/Users/Klant/Documents/GitHub/ADS-Snuffelfiets-Thesis/data/processed/regression_features/pred_grid1000.csv')
+
+# should include at least the temporal local window around the prediction time points with size of the temporal range
+sp_grid <- SpatialPoints(pred_grid) # spatial prediction grid to SpatialPoints class
+tm_grid <- c(as.POSIXct('2020-01-07 08:00:00 UTC'), as.POSIXct('2020-01-07 09:00:00 UTC')) # temporal prediction grid. 
+# tm_grid should be of length >1
+#tz(tm_grid) <- "UTC" # time_zone of tm_grid, set similar to time zone of data
+st_grid <- STF(sp_grid, tm_grid) # create spatio-temporal prediction grid
+proj4string(st_grid) <- proj4string(pred_df) # set projection equal to data
+
+
+# to subset stdf: stdf[locations, time points, variables]
+sec_factor <- 3600 # krigeST works with temporal unit in seconds. Set this to go from your temporal unit to seconds
+# e.g. 1 hour = 3600 seconds, or 1 day = 86400 seconds
+krige_pred <- krigeST(res~1, data=stdf, newdata=st_grid, fitsepVgm, stAni=variogram$stAni/sec_factor, computeVar=T)
+gc() # remove temporary files from memory
+
+gridded(krige_pred@sp) <- TRUE  # clever trick of rasterizing SP
+
+# plot predicted residuals map 
+stplot(krige_pred) # plots in classes, so first rasterize to plot your own way
+
+plot(krige_pred)
