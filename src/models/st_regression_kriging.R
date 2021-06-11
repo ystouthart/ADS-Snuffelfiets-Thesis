@@ -22,7 +22,7 @@ utrecht <- st_read("C:/Users/Klant/Documents/GitHub/ADS-Snuffelfiets-Thesis/data
 
 ####################################################
 # Load the Regression Features:
-d <- read.csv('C:/Users/Klant/Documents/GitHub/ADS-Snuffelfiets-Thesis/data/processed/regression_features/features100.csv')
+d <- read.csv('C:/Users/Klant/Documents/GitHub/ADS-Snuffelfiets-Thesis/data/processed/regression_features/features1000.csv')
 d$date = as.POSIXct(d$date)
 d = d[order(d[,"date"], d[,"X"], d[,"Y"]),]
 coordinates(d) <- ~X+Y
@@ -149,7 +149,8 @@ gc()
 
 total_list = list()
 for (i in 1:length(st_dimensions(st_r_kriging)$time$values)){
-  total <- data.frame("date"= st_dimensions(st_r_kriging)$time$values[i], "geometry"=st_dimensions(st_r_kriging)$sfc$values, "lm_pred"=full_pred_stars$lm_pred[,i], "krige_pred"=st_r_kriging$var1.pred[,i], "var"=st_r_kriging$var1.var[,i])
+  coords <- st_coordinates(st_dimensions(st_r_kriging)$sfc$values)
+  total <- data.frame("date"= st_dimensions(st_r_kriging)$time$values[i], "x"=coords[,"X"], "y"=coords[,"Y"], "lm_pred"=full_pred_stars$lm_pred[,i], "krige_pred"=st_r_kriging$var1.pred[,i], "var"=st_r_kriging$var1.var[,i])
   total$sum <- total$lm_pred + total$krige_pred
   total_list[[i]] <- total
 }
@@ -161,8 +162,9 @@ gc()
 ####################################################
 # Save the results:
 
-filename = "C:/Users/Klant/Documents/GitHub/ADS-Snuffelfiets-Thesis/output/st_regression_kriging/st_reg_krige_100.csv"
+filename = "C:/Users/Klant/Documents/GitHub/ADS-Snuffelfiets-Thesis/output/st_regression_kriging/st_reg_krige_1000.csv"
 write.csv(total, file=filename, row.names=FALSE)
+
 
 
 
