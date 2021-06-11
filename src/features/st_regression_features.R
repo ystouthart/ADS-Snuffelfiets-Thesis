@@ -17,7 +17,7 @@ library(osmenrich)
 
 
 # Important: Set the resolution of the aggregated input data.
-res <- 100
+res <- 1000
 
 # Open the City of Utrecht polygon (CBS, 2020).
 utrecht <- st_read("C:/Users/Klant/Documents/GitHub/ADS-Snuffelfiets-Thesis/data/external/WijkBuurtkaart_2020_v1/gem_utrecht.shp")

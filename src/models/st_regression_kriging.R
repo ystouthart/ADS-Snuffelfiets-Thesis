@@ -1,5 +1,5 @@
 ###
-###  st_regression_features.R
+###  st_regression_kriging.R
 ###
 ###  Applies Spatio-Temporal Regression Kriging on the regression features.
 ###
@@ -13,13 +13,18 @@ library(gstat)
 library(sp)
 library(sf)
 library(spacetime)
+library(stars)
+library(data.table)
 
 utrecht <- st_read("C:/Users/Klant/Documents/GitHub/ADS-Snuffelfiets-Thesis/data/external/WijkBuurtkaart_2020_v1/gem_utrecht.shp")
 
 
 
-# Load the Regression Features
+####################################################
+# Load the Regression Features:
 d <- read.csv('C:/Users/Klant/Documents/GitHub/ADS-Snuffelfiets-Thesis/data/processed/regression_features/features100.csv')
+d$date = as.POSIXct(d$date)
+d = d[order(d[,"date"], d[,"X"], d[,"Y"]),]
 coordinates(d) <- ~X+Y
 projection(d) <- projection(utrecht)
 
@@ -29,6 +34,10 @@ d$rail <- as.factor(d$rail)
 d$HH <- as.factor(d$HH)
 d$DD <- as.factor(d$DD)
 
+gc()
+####################################################
+# Linear Model:
+
 # Train the model
 lm <- lm(pm2_5_mean ~ address_density + pop_density + road + rail + easting + northing + DD + HH + FH + `T` + P + U + traffic_signals, data=d, na.action="na.exclude")
 summary(lm)
@@ -37,115 +46,124 @@ summary(lm)
 lm_pred <- predict.lm(lm, se.fit=T)
 
 # Create the prediction dataframe
-pred_df <- data.frame("date"=d$date, "x"=d@coords[,1], "y"=d@coords[,2], "pm2_5"=d$pm2_5_mean, "pred"=lm_pred[["fit"]], "se.fit"=lm_pred[["se.fit"]])
+pred_df <- data.frame("x"=d@coords[,1], "y"=d@coords[,2], "date"=d$date, "pm2_5"=d$pm2_5_mean, "pred"=lm_pred[["fit"]], "se.fit"=lm_pred[["se.fit"]])
 pred_df$res <- pred_df$pm2_5 - pred_df$pred
-pred_df$date <- as.POSIXct(pred_df$date)
-pred_df <- pred_df[order(pred_df$date),]
-coordinates(pred_df) <- ~x+y
-projection(pred_df) <- projection(utrecht)
-
-# Create Spatio-Temporal Dataframe of Residuals
-locs <-  SpatialPoints(unique(pred_df@coords),crs(pred_df))
-time_list <- unique(pred_df$date)
-res_df <- data.frame("res"=pred_df$res)
-stdf <- STFDF(sp=locs, time=time_list, data=res_df)
 
 
-# Create Empirical ST Variogram
-vv=variogram(res~1, stdf, cressie=F, boundaries=c(500,1000, 1500, 2000, 2500, 3000, 3500, 4000, 4500))
+# Converting pred_df to 'stars' object (Thanks Lucas :)) 
+sf_data <- st_as_sf(pred_df, coords = c("x", "y"), crs = 28992)
+
+pred_stars = sf_data %>% st_as_sf(coords = c('X','Y'))
+
+xy_ = st_coordinates(unique(pred_stars))
+pred_stars = pred_stars[order(xy_[,"X"], xy_[,"Y"]),]
+
+geom = st_sfc(unique(pred_stars$geometry))
+
+time = as.POSIXct(unique(pred_stars$date))
+time = time[order(time)]
+
+cast = dcast(pred_stars, as.character(geometry) ~ date, value.var = 'res', fun.aggregate = max)  
+mat = as.matrix(cast[,-1])
+
+dims = st_dimensions(space = geom,time = as.POSIXct(time))
+
+pred_stars = st_as_stars(res = mat,dim = dims)
+
+
+gc()
+####################################################
+# Variogram:
+
+# Creating the Empirical ST Variogram
+vv=variogramST(res~1, pred_stars, cressie=F, boundaries=c(500,1000, 1500, 2000, 2500, 3000, 3500, 4000, 4500), tlags = 0:6)
+
 plot(vv)
 plot(vv, map=F)
-plot(vv, wireframe=T)
+plot(vv, wireframe=T, scales=list(arrows=F, z=list(distance=5)))
 vv
 
-# Create Empirical ST Variogram
-vv1=variogram(res~1, stdf, cressie=F)
-plot(vv1)
-plot(vv1, map=F)
-plot(vv1, wireframe=T)
-vv
-
-
+gc()
 # Fitting the ST Variogram model
-
 # metric
-metricVgm <- vgmST("metric", joint=vgm(psill=100, model="Sph", range=2000, nugget=0), stAni=25) 
+metricVgm <- vgmST("metric", joint=vgm(psill=25, model="Sph", range=2000, nugget=0), stAni=1200) 
+
 set.seed(seed=123)
 fitmetricVgm <- fit.StVariogram(vv, metricVgm)
 attr(fitmetricVgm, "optim")$value # MSE
 attr(fitmetricVgm, "optim")$convergence # convergence code (should be 0)
-plot(vv, fitmetricVgm, wireframe=T)
+plot(vv, fitmetricVgm, all=T, wireframe=T)
 fitmetricVgm
 
-# separable 
-sepVgm <- vgmST("separable", 
-                space=vgm(psill=90, model="Sph", range=2000, nugget=0),
-                time=vgm(psill=30, model="Sph", range=12, nugget=0),
-                sill=100)
-set.seed(seed=123)
-fitsepVgm <- fit.StVariogram(vv, sepVgm, maxit=10000, st.Ani=25, control=list(parscale=c(100,1,10,1,100)), # use parscale to set similar step lengths for optimization of different units in space and time
-                             lower=c(10,0,0.1,0,0.1),
-                             upper=c(2000,100,24,100,100)) # check parameters parscale/lower/upper
-attr(fitsepVgm, "optim")$value # MSE
-attr(fitsepVgm, "optim")$convergence # convergence code (should be 0)
-plot(vv, fitsepVgm, wireframe=T, zlab="gamma")
-plot(vv, list(fitmetricVgm, fitsepVgm), all=T, wireframe=T)
-fitsepVgm
 
-# sum-metric
-sumVgm <- vgmST("sumMetric", space=vgm(psill=90, model="Sph", range=2000, nugget=0),
-                time=vgm(psill=30, model="Sph", range=12, nugget=0),
-                joint=vgm(psill=100, model="Sph", range=2000, nugget=0), stAni=25)
-set.seed(seed=123)
-fitsumVgm <- fit.StVariogram(vv, sumVgm, maxit=10000, control=list(parscale=c(1,100,1, # use parscale to set similar step lengths for optimization of different units in space and time
-                                                                              1,0.5,1,
-                                                                              1,100,1,
-                                                                              1)),
-                             lower=c(sill.s=0,range.s=10,nugget.s=0,
-                                     sill.t=0,range.t=0.1,nugget.t=0,
-                                     sill.st=0,range.st=10,nugget.st=0,
-                                     anis=0),
-                             upper=c(sill.s=200,range.s=5000,nugget.s=200,
-                                     sill.t=100,range.t=24,nugget.t=100,
-                                     sill.st=200,range.st=5000,nugget.st=200,
-                                     anis=100))
-attr(fitsumVgm, "optim")$value # MSE
-attr(fitsumVgm, "optim")$convergence # convergence code (should be 0)
-plot(vv, fitsumVgm, wireframe=T, zlab="gamma")
-plot(vv, list(fitmetricVgm, fitsepVgm, fitsumVgm), all=T, wireframe=T)
-plot(vv, list(fitmetricVgm, fitsepVgm, fitsumVgm), all=T, wireframe=F, map=F)
-plot(vv, list(fitmetricVgm, fitsepVgm, fitsumVgm), all=T, wireframe=T, diff=T) # differences between sample and fitted variogram
-fitsumVgm 
+####################################################
+# Kriging of the Residuals:
 
-plot(vv, wireframe=T, main="Sample variogram")
-plot(vv, fitsumVgm, wireframe=T, zlab="gamma", main="Sum-metric variogram model")
-plot(vv, list(fitsumVgm, fitmetricVgm, fitsepVgm), all=T, wireframe=T, 
-     scales=list(arrows=F, z=list(distance=5)), 
-     xlab=list("h (m)", rot=30), ylab=list("u (hours)", rot=-35), zlab=expression(~gamma)) 
+empty_stars = st_as_stars(value = matrix(1, length(st_dimensions(pred_stars)$space$values), 181), dim = dims)
 
-extractPar(fitsumVgm)
-
-# kriging preparations
-pred_grid <- read.csv('C:/Users/Klant/Documents/GitHub/ADS-Snuffelfiets-Thesis/data/processed/regression_features/pred_grid1000.csv')
-
-# should include at least the temporal local window around the prediction time points with size of the temporal range
-sp_grid <- SpatialPoints(pred_grid) # spatial prediction grid to SpatialPoints class
-tm_grid <- c(as.POSIXct('2020-01-07 08:00:00 UTC'), as.POSIXct('2020-01-07 09:00:00 UTC')) # temporal prediction grid. 
-# tm_grid should be of length >1
-#tz(tm_grid) <- "UTC" # time_zone of tm_grid, set similar to time zone of data
-st_grid <- STF(sp_grid, tm_grid) # create spatio-temporal prediction grid
-proj4string(st_grid) <- proj4string(pred_df) # set projection equal to data
+gc()
 
 
-# to subset stdf: stdf[locations, time points, variables]
-sec_factor <- 3600 # krigeST works with temporal unit in seconds. Set this to go from your temporal unit to seconds
-# e.g. 1 hour = 3600 seconds, or 1 day = 86400 seconds
-krige_pred <- krigeST(res~1, data=stdf, newdata=st_grid, fitsepVgm, stAni=variogram$stAni/sec_factor, computeVar=T)
-gc() # remove temporary files from memory
+st_r_kriging = krigeST(res~1,data=pred_stars['res'],
+                       newdata=empty_stars['value'], nmax=50, stAni=fitmetricVgm$stAni/3600,
+                       modelList = fitmetricVgm, computeVar=T)
 
-gridded(krige_pred@sp) <- TRUE  # clever trick of rasterizing SP
+plot(st_r_kriging["var1.pred"])
 
-# plot predicted residuals map 
-stplot(krige_pred) # plots in classes, so first rasterize to plot your own way
+gc()
 
-plot(krige_pred)
+####################################################
+# PM2.5 LM predictions:
+
+predictors <- d@data[c("address_density", "pop_density", "road", "rail", "easting", "northing", "DD", "HH", "FH", "T", "P", "U", "traffic_signals")]
+full_pred = predict.lm(lm, predictors)
+
+full_pred <- data.frame("date"=d@data[,"date"], "x"=coordinates(d)[,"X"], "y"=coordinates(d)[,"Y"], "lm_pred"=full_pred)
+
+# Convert LM Predictions to "stars" object:
+sf_data <- st_as_sf(full_pred, coords = c("x", "y"), crs = 28992)
+
+full_pred_stars = sf_data %>% st_as_sf(coords = c('X','Y'))
+
+xy_ = st_coordinates(unique(full_pred_stars))
+full_pred_stars = full_pred_stars[order(xy_[,"X"], xy_[,"Y"]),]
+
+geom = st_sfc(unique(full_pred_stars$geometry))
+
+time = as.POSIXct(unique(full_pred_stars$date))
+time = time[order(time)]
+
+cast = dcast(full_pred_stars, as.character(geometry) ~ date, value.var = 'lm_pred', fun.aggregate = max)  
+mat = as.matrix(cast[,-1])
+
+dims = st_dimensions(space = geom,time = as.POSIXct(time))
+
+full_pred_stars = st_as_stars(lm_pred = mat,dim = dims)
+
+gc()
+
+
+####################################################
+# Add LM Predictions to the Kriged Residuals:
+
+
+total_list = list()
+for (i in 1:length(st_dimensions(st_r_kriging)$time$values)){
+  total <- data.frame("date"= st_dimensions(st_r_kriging)$time$values[i], "geometry"=st_dimensions(st_r_kriging)$sfc$values, "lm_pred"=full_pred_stars$lm_pred[,i], "krige_pred"=st_r_kriging$var1.pred[,i], "var"=st_r_kriging$var1.var[,i])
+  total$sum <- total$lm_pred + total$krige_pred
+  total_list[[i]] <- total
+}
+total <- dplyr::bind_rows(total_list)
+total$pm2_5_mean <- d@data$pm2_5_mean # Add the original measurements
+
+gc()
+
+####################################################
+# Save the results:
+
+filename = "C:/Users/Klant/Documents/GitHub/ADS-Snuffelfiets-Thesis/output/st_regression_kriging/st_reg_krige_100.csv"
+write.csv(total, file=filename, row.names=FALSE)
+
+
+
+

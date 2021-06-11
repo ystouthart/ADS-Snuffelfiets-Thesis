@@ -16,6 +16,17 @@ library(sf)
 library(dplyr)
 
 
+# Read the City of Utrecht polygon (CBS, 2020)
+utrecht <- st_read("C:/Users/Klant/Documents/GitHub/ADS-Snuffelfiets-Thesis/data/external/WijkBuurtkaart_2020_v1/gem_utrecht.shp")
+
+# Read the SF data for week 2 and 3, year 2020, during weekdays and daytime, and transform to EPSG:28992.
+data <- read.csv("C:/Users/Klant/Documents/GitHub/ADS-Snuffelfiets-Thesis/data/interim/data_selection_bbox.csv") 
+coordinates(data) <- ~lon+lat
+proj4string(data) <- CRS(st_crs(4326)$wkt)
+data <- spTransform(data, crs(utrecht))
+
+
+
 vmsGrid <- function(d, res){
   #
   # Takes in the Snuffelfiets SPDF, and returns a SPDF with pm2.5 values aggregated on a grid with resolution = res.
@@ -122,17 +133,6 @@ vmsGridHourly <- function(d, res){
 
 
 
-
-# Read the City of Utrecht polygon (CBS, 2020)
-utrecht <- st_read("C:/Users/Klant/Documents/GitHub/ADS-Snuffelfiets-Thesis/data/external/WijkBuurtkaart_2020_v1/gem_utrecht.shp")
-
-# Read the SF data for week 2 and 3, year 2020, during weekdays and daytime, and transform to EPSG:28992.
-data <- read.csv("C:/Users/Klant/Documents/GitHub/ADS-Snuffelfiets-Thesis/data/interim/data_selection_bbox.csv") 
-coordinates(data) <- ~lon+lat
-proj4string(data) <- CRS(st_crs(4326)$wkt)
-data <- spTransform(data, crs(utrecht))
-
-
 # Create VMS Grids
 # Total
 vmsGrid(data, 1500)
@@ -218,3 +218,4 @@ vmsGridHourlyF <- function(d, res){
 } 
 
 vmsGridHourlyF(data, 100)
+vmsGridHourlyF(data, 1000)
