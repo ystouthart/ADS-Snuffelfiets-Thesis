@@ -8,6 +8,7 @@
 ###
 
 rm(list=ls())
+gc()
 library(raster)
 library(gstat)
 library(sp)
@@ -22,7 +23,7 @@ utrecht <- st_read("C:/Users/Klant/Documents/GitHub/ADS-Snuffelfiets-Thesis/data
 
 ####################################################
 # Load the Regression Features:
-d <- read.csv('C:/Users/Klant/Documents/GitHub/ADS-Snuffelfiets-Thesis/data/processed/regression_features/features1000.csv')
+d <- read.csv('C:/Users/Klant/Documents/GitHub/ADS-Snuffelfiets-Thesis/data/processed/regression_features/features250.csv')
 d$date = as.POSIXct(d$date)
 d = d[order(d[,"date"], d[,"X"], d[,"Y"]),]
 coordinates(d) <- ~X+Y
@@ -34,12 +35,11 @@ d$rail <- as.factor(d$rail)
 d$HH <- as.factor(d$HH)
 d$DD <- as.factor(d$DD)
 
-gc()
 ####################################################
 # Linear Model:
 
 # Train the model
-lm <- lm(pm2_5_mean ~ address_density + pop_density + road + rail + easting + northing + DD + HH + FH + `T` + P + U + traffic_signals, data=d, na.action="na.exclude")
+lm <- lm(pm2_5_mean ~ address_density + pop_density  + road + rail + wind_dir + HH + wind_speed + humidity , data=d, na.action="na.exclude")
 summary(lm)
 
 # Generate predictions
@@ -70,8 +70,8 @@ dims = st_dimensions(space = geom,time = as.POSIXct(time))
 
 pred_stars = st_as_stars(res = mat,dim = dims)
 
-
 gc()
+
 ####################################################
 # Variogram:
 
@@ -83,17 +83,11 @@ plot(vv, map=F)
 plot(vv, wireframe=T, scales=list(arrows=F, z=list(distance=5)))
 vv
 
-gc()
 # Fitting the ST Variogram model
 # metric
-metricVgm <- vgmST("metric", joint=vgm(psill=25, model="Sph", range=2000, nugget=0), stAni=1200) 
-
+metric <- vgmST("metric", joint=vgm(psill=25, model="Exp", range=2000, nugget=0), stAni=1200) 
 set.seed(seed=123)
-fitmetricVgm <- fit.StVariogram(vv, metricVgm)
-attr(fitmetricVgm, "optim")$value # MSE
-attr(fitmetricVgm, "optim")$convergence # convergence code (should be 0)
-plot(vv, fitmetricVgm, all=T, wireframe=T)
-fitmetricVgm
+fitmetric <- fit.StVariogram(vv, metric)
 
 
 ####################################################
@@ -105,17 +99,15 @@ gc()
 
 
 st_r_kriging = krigeST(res~1,data=pred_stars['res'],
-                       newdata=empty_stars['value'], nmax=50, stAni=fitmetricVgm$stAni/3600,
-                       modelList = fitmetricVgm, computeVar=T)
-
-plot(st_r_kriging["var1.pred"])
+                       newdata=empty_stars['value'], nmax=50, stAni=fitmetric$stAni/3600,
+                       modelList = fitmetric, computeVar=T)
 
 gc()
 
 ####################################################
 # PM2.5 LM predictions:
 
-predictors <- d@data[c("address_density", "pop_density", "road", "rail", "easting", "northing", "DD", "HH", "FH", "T", "P", "U", "traffic_signals")]
+predictors <- d@data[c("address_density", "pop_density", "road", "rail", "wind_dir", "HH", "wind_speed", "humidity")]
 full_pred = predict.lm(lm, predictors)
 
 full_pred <- data.frame("date"=d@data[,"date"], "x"=coordinates(d)[,"X"], "y"=coordinates(d)[,"Y"], "lm_pred"=full_pred)
@@ -162,7 +154,7 @@ gc()
 ####################################################
 # Save the results:
 
-filename = "C:/Users/Klant/Documents/GitHub/ADS-Snuffelfiets-Thesis/output/st_regression_kriging/st_reg_krige_1000.csv"
+filename = "C:/Users/Klant/Documents/GitHub/ADS-Snuffelfiets-Thesis/output/st_regression_kriging/st_reg_krige_250.csv"
 write.csv(total, file=filename, row.names=FALSE)
 
 

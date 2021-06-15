@@ -38,23 +38,15 @@ values(address_density)[values(address_density)<0] <- 0
 pop_density <- rasterize(neighborhoods, r, field = "BEV_DICHTH", mean)
 values(pop_density)[values(pop_density)<0] <- 0
 
-# Headings
-headings <- as.data.frame(coordinates(r))
-headings$east <- coordinates(r)[,1]
-headings$north <- coordinates(r)[,2]
-coordinates(headings) <- ~x+y
-easting <- rasterize(headings, r, field="east")
-northing <- rasterize(headings, r, field="north")
-
 # Proximity to main roads (A/N-type)
 roads <- raster("C:/Users/Klant/Documents/GitHub/ADS-Snuffelfiets-Thesis/data/external/road_distance_utrecht.TIF")
-values(roads)[values(roads)<=100] <- 1
-values(roads)[values(roads)>100] <- 0 # Label all area's closer than 100m to main roads
+values(roads)[values(roads)<=150] <- 1
+values(roads)[values(roads)>150] <- 0 # Label all area's closer than 100m to main roads
 
 # Proximity to rail roads
 rail <- raster("C:/Users/Klant/Documents/GitHub/ADS-Snuffelfiets-Thesis/data/external/rail_distance_utrecht.TIF")
-values(rail)[values(rail)<=100] <- 1
-values(rail)[values(rail)>100] <- 0
+values(rail)[values(rail)<=150] <- 1
+values(rail)[values(rail)>150] <- 0
 
 
 ###################################################################
@@ -64,7 +56,7 @@ values(rail)[values(rail)>100] <- 0
 
 # Open the KNMI data (KNMI, 2021):
 knmi <- read.csv('C:/Users/Klant/Documents/GitHub/ADS-Snuffelfiets-Thesis/data/external/uurgeg_260_2011-2020/uurgeg_260_2011-2020.txt', skip=31, strip.white=T)
-knmi <- knmi[,c(2,3,4,5,8,15,18)] 
+knmi <- knmi[,c(2,3,4,5,18)] 
 
 # Create Datetime column for matching
 knmi$date <- as.POSIXct(paste(knmi$YYYYMMDD, knmi$HH, sep=" "), format="%Y%m%d %H")
@@ -82,6 +74,7 @@ knmi$DD[!(knmi$DD==990|knmi$DD==00)] <- degree_to_dir(knmi$DD[!(knmi$DD==990|knm
 knmi$DD[knmi$DD==990] <- "VAR" # variable
 knmi$DD[knmi$DD==0] <- "NO" # no wind
 
+colnames(knmi) <- c("YYYYMMDD", "HH", "wind_dir", "wind_speed", "humidity")
 
 ###################################################################
 
@@ -97,12 +90,8 @@ projection(data) <- projection(utrecht) # set the projection equal
 # Add the Spatial predictors
 data$pop_density <- extract(pop_density, data)
 data$address_density <- extract(address_density, data)
-data$easting <- extract(easting, data)
-data$northing <- extract(northing, data)
 data$road <- extract(roads, data)
-data$road <- as.factor(data$road)
 data$rail <- extract(rail, data)
-data$rail <- as.factor(data$rail)
 
 # Add the Temporal predictors
 data <- merge(data, knmi, by="date")
@@ -111,12 +100,12 @@ data <- merge(data, knmi, by="date")
 ###################################################################
 
 
-# Using osmenrich for adding spatial features from OpenStreetMap:
+# Using 'osmenrich' package for adding more spatial features from OpenStreetMap:
 
 
 sf_data <- st_as_sf(data.frame(round(coordinates(r),1)), coords = c("x", "y"), crs = 28992)
 
-sf_data_enriched <- sf_data %>%
+sf_data_ts <- sf_data %>%
   enrich_osm(
     name = "traffic_signals",
     key = "highway",
@@ -124,11 +113,10 @@ sf_data_enriched <- sf_data %>%
     r = (res/2)
   )
 
-st_crs(sf_data_enriched) <- st_crs(data)
-
-
+st_crs(sf_data_ts) <- st_crs(data)
 data <- st_as_sf(data, crs=28992)
-spat_join <- st_join(data, sf_data_enriched)
+
+spat_join <- st_join(data, sf_data_ts)
 
 
 ###################################################################
@@ -139,13 +127,3 @@ spat_join <- st_join(data, sf_data_enriched)
 filename = paste("C:/Users/Klant/Documents/GitHub/ADS-Snuffelfiets-Thesis/data/processed/regression_features/features", res, ".csv", sep='')
 st_write(spat_join, filename, layer_options = "GEOMETRY=AS_XY", append=FALSE)
 
-
-
-# Save accompanying Prediction Grid for Kriging
-pred_grid <- raster(extent(utrecht), resolution=c(res), crs=projection(utrecht)) 
-pred_grid_sp <- SpatialPoints(pred_grid)
-proj4string(pred_grid_sp) <- proj4string(pred_grid)
-pred_grid <- as.data.frame(pred_grid_sp,xy=TRUE)
-
-filename = paste("C:/Users/Klant/Documents/GitHub/ADS-Snuffelfiets-Thesis/data/processed/regression_features/pred_grid", res, ".csv", sep='')
-write.csv(pred_grid, file=filename, row.names=FALSE)
