@@ -219,3 +219,7 @@ vmsGridHourlyF <- function(d, res){
 
 vmsGridHourlyF(data, 100)
 vmsGridHourlyF(data, 1000)
+
+vmsGridHourlyF(data, 500)
+vmsGridHourlyF(data, 250)
+vmsGridHourlyF(data, 125)

@@ -23,7 +23,7 @@ utrecht <- st_read("C:/Users/Klant/Documents/GitHub/ADS-Snuffelfiets-Thesis/data
 
 ####################################################
 # Load the Regression Features:
-d <- read.csv('C:/Users/Klant/Documents/GitHub/ADS-Snuffelfiets-Thesis/data/processed/regression_features/features250.csv')
+d <- read.csv('C:/Users/Klant/Documents/GitHub/ADS-Snuffelfiets-Thesis/data/processed/regression_features/features1000.csv')
 d$date = as.POSIXct(d$date)
 d = d[order(d[,"date"], d[,"X"], d[,"Y"]),]
 coordinates(d) <- ~X+Y
@@ -33,7 +33,7 @@ projection(d) <- projection(utrecht)
 d$road <- as.factor(d$road)
 d$rail <- as.factor(d$rail)
 d$HH <- as.factor(d$HH)
-d$DD <- as.factor(d$DD)
+d$wind_dir <- as.factor(d$DD)
 
 ####################################################
 # Linear Model:
@@ -78,10 +78,6 @@ gc()
 # Creating the Empirical ST Variogram
 vv=variogramST(res~1, pred_stars, cressie=F, boundaries=c(500,1000, 1500, 2000, 2500, 3000, 3500, 4000, 4500), tlags = 0:6)
 
-plot(vv)
-plot(vv, map=F)
-plot(vv, wireframe=T, scales=list(arrows=F, z=list(distance=5)))
-vv
 
 # Fitting the ST Variogram model
 # metric

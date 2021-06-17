@@ -16,17 +16,19 @@ library(sf)
 library(spacetime)
 library(stars)
 library(data.table)
+library(parallel)
+library(foreach)
+library(bigstatsr)
 
 
 
-
-lolocv <- function(res){
+lolocvParallel <- function(res){
   # Load the Regression Features:
-  d <- read.csv(paste('C:/Users/Klant/Documents/GitHub/ADS-Snuffelfiets-Thesis/data/processed/regression_features/features', res, '.csv', sep=""))
+  d <- read.csv(paste('~/data/processed/regression_features/features', res, '.csv', sep=""))
   d$date = as.POSIXct(d$date)
   d = d[order(d[,"date"], d[,"X"], d[,"Y"]),]
   coordinates(d) <- ~X+Y
-  utrecht <- st_read("C:/Users/Klant/Documents/GitHub/ADS-Snuffelfiets-Thesis/data/external/WijkBuurtkaart_2020_v1/gem_utrecht.shp")
+  utrecht <- st_read("~/data/external/WijkBuurtkaart_2020_v1/gem_utrecht.shp")
   projection(d) <- projection(utrecht)
   
   # Set factors
@@ -34,6 +36,8 @@ lolocv <- function(res){
   d$rail <- as.factor(d$rail)
   d$HH <- as.factor(d$HH)
   d$wind_dir <- as.factor(d$wind_dir)
+  
+  print("check load")
   
   ####################################################
   # Linear Model:
@@ -71,6 +75,8 @@ lolocv <- function(res){
   pred_stars = st_as_stars(res = mat,dim = dims)
   
   
+  print("check lm")
+  
   ####################################################
   # Variogram:
   
@@ -85,6 +91,7 @@ lolocv <- function(res){
   set.seed(seed=123)
   fitmetric <- fit.StVariogram(vv, metric)
   
+  print("check vgm")
   
   #####################################
   # LOLOCV:
@@ -96,19 +103,39 @@ lolocv <- function(res){
   
   lloc <- length(st_dimensions(locations)$space$values)
   
-  for (loc in 1:lloc){
-    print(loc/lloc)
-    lolocv_krige = krigeST(res~1, data=pred_stars["res", -loc],
-                           newdata=locations["value", loc], nmax=50, 
-                           stAni=fitmetric$stAni/3600, modelList = fitmetric)
-    pred_matrix[loc,] <- lolocv_krige$var1.pred
-  }
+  
+  # Parallel Processing (https://privefl.github.io/blog/a-guide-to-parallelism-in-r/):
+  mat <- FBM(length(st_dimensions(locations)$space$values),length(st_dimensions(locations)$time$values))
+  
+  cl <- parallel::makeCluster(46)
+  
+  doParallel::registerDoParallel(cl)
+  
+  parts <- split(x = 1:lloc, f = 1:46)
+  
+  clusterExport(cl = cl, varlist = c("pred_stars", "locations", "fitmetric", "parts", "pred_matrix"), envir = .GlobalEnv)
+  clusterEvalQ(cl = cl, expr = c(library('sp'), library('gstat'), library('stars')))
+  
+  print("check parallel set")
+  print(Sys.time())
+  
+  tmp3 <- foreach(j = 1:46, .combine = 'c') %:%
+    foreach(i = parts[[j]], .combine = 'c') %dopar% {
+      mat[i,] <- krigeST(res~1, data=pred_stars["res", -i],
+                         newdata=locations["value", i], nmax=50, 
+                         stAni=fitmetric$stAni/3600, modelList = fitmetric)$var1.pred[1,]
+      NULL
+    }
   
   
+  parallel::stopCluster(cl)
+  
+  print("check parallel completed")
+  print(Sys.time())
   
   #####################################
-  # Original values:
   
+  # Original values:
   res_matrix <- matrix(NA, length(st_dimensions(locations)$space$values),length(st_dimensions(locations)$time$values))
   
   for (loc in 1:length(st_dimensions(pred_stars)$space$values)){
@@ -116,12 +143,14 @@ lolocv <- function(res){
   }
   
   
+  
   #####################################
   # Calculating performance statistics:
   
   
-  # crossStat function adopted from demo(stkrige-crossvalidation):
-  crossStat <- function(pred=mat3[][!is.na(res_matrix)], res=res_matrix[!is.na(res_matrix)], digits=NA) {
+  
+  # crossStat function adopted from demo(stkrige-crossvalidation)
+  crossStat <- function(pred=mat[][!is.na(res_matrix)], res=res_matrix[!is.na(res_matrix)], digits=NA) {
     
     diff <- pred - res
     
@@ -151,46 +180,15 @@ lolocv <- function(res){
   
   stats <- data.frame(as.list(crossStat(digits=5)))
   
-  
-  #####################################
-  # Save as CSV:
-  
-  filename = paste("C:/Users/Klant/Documents/GitHub/ADS-Snuffelfiets-Thesis/output/lolocv/par_lolocv_", res, ".csv", sep="")
+  filename = paste("~/output/lolocv/parallel_lolocv_", res, ".csv", sep="")
   write.csv(stats, file=filename, row.names=FALSE)
   
 }
 
 
-#####################################
-# Optional: LOLO using Parallel Processing
-library(bigstatsr)
-library(parallel)
-library(foreach)
+#lolocvParallel(1000)
 
-mat <- FBM(length(st_dimensions(locations)$space$values),length(st_dimensions(locations)$time$values))
+#for (re in c(125, 100)){
+#  lolocvParallel(re)
+#}
 
-cl <- parallel::makeCluster(no_cores)
-
-doParallel::registerDoParallel(cl)
-
-parts <- split(x = 1:35, f = 1:no_cores)
-
-count <- 0
-
-clusterExport(cl = cl, varlist = c("pred_stars", "locations", "fitmetric", "parts", "pred_matrix","count"), envir = .GlobalEnv)
-clusterEvalQ(cl = cl, expr = c(library('sp'), library('gstat'), library('stars')))
-
-
-system.time(tmp3 <- foreach(j = 1:no_cores, .combine = 'c') %:%
-              foreach(i = parts[[j]], .combine = 'c') %dopar% {
-                mat[i,] <- krigeST(res~1, data=pred_stars["res", -i],
-                                   newdata=locations["value", i], nmax=50, 
-                                   stAni=fitmetric$stAni/3600, modelList = fitmetric)$var1.pred[1,]
-                count=count+1
-                print(count/35)
-                NULL
-              })
-
-parallel::stopCluster(cl)
-
-mat[]
