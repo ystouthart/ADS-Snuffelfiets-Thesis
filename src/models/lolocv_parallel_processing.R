@@ -1,7 +1,7 @@
 ###
 ###  st_reg_lolocv.R
 ###
-###  Applies Leave-One-Location-Out Cross Validation to assess ST-Reg.-Kriging model's internal accuracy.
+###  Applies Leave-One-Location-Out Cross Validation with Parallel Processing to assess ST-Reg.-Kriging model's internal accuracy.
 ###
 ###  Input: Regression features & prediction map (output from st_regression_features.R).
 ###  Output: Model performance statistics.
@@ -20,15 +20,16 @@ library(parallel)
 library(foreach)
 library(bigstatsr)
 
+res <- 125
 
 
 lolocvParallel <- function(res){
   # Load the Regression Features:
-  d <- read.csv(paste('~/data/processed/regression_features/features', res, '.csv', sep=""))
+  d <- read.csv(paste('~/GitHub/ADS-Snuffelfiets-Thesis/data/processed/regression_features/features', res, '.csv', sep=""))
   d$date = as.POSIXct(d$date)
   d = d[order(d[,"date"], d[,"X"], d[,"Y"]),]
   coordinates(d) <- ~X+Y
-  utrecht <- st_read("~/data/external/WijkBuurtkaart_2020_v1/gem_utrecht.shp")
+  utrecht <- st_read("~/GitHub/ADS-Snuffelfiets-Thesis/data/external/WijkBuurtkaart_2020_v1/gem_utrecht.shp")
   projection(d) <- projection(utrecht)
   
   # Set factors
@@ -107,11 +108,11 @@ lolocvParallel <- function(res){
   # Parallel Processing (https://privefl.github.io/blog/a-guide-to-parallelism-in-r/):
   mat <- FBM(length(st_dimensions(locations)$space$values),length(st_dimensions(locations)$time$values))
   
-  cl <- parallel::makeCluster(46)
+  cl <- parallel::makeCluster(7)
   
   doParallel::registerDoParallel(cl)
   
-  parts <- split(x = 1:lloc, f = 1:46)
+  parts <- split(x = 1:lloc, f = 1:7)
   
   clusterExport(cl = cl, varlist = c("pred_stars", "locations", "fitmetric", "parts", "pred_matrix"), envir = .GlobalEnv)
   clusterEvalQ(cl = cl, expr = c(library('sp'), library('gstat'), library('stars')))
@@ -119,7 +120,7 @@ lolocvParallel <- function(res){
   print("check parallel set")
   print(Sys.time())
   
-  tmp3 <- foreach(j = 1:46, .combine = 'c') %:%
+  tmp3 <- foreach(j = 1:7, .combine = 'c') %:%
     foreach(i = parts[[j]], .combine = 'c') %dopar% {
       mat[i,] <- krigeST(res~1, data=pred_stars["res", -i],
                          newdata=locations["value", i], nmax=50, 
@@ -167,10 +168,9 @@ lolocvParallel <- function(res){
     ME <- mean(diff)
     COR <- cor(pred, res)
     MSE <- mean(diff^2)
-    CONCOR <- (2*cov12)/(variance1+variance2+(mu1-mu2)^2)
-    
-    stats <- c(RMSE, MAE, ME, COR, MSE, CONCOR)
-    names(stats) <- c("RMSE", "MAE", "ME", "COR", "MSE", "CONCOR")
+
+    stats <- c(RMSE, MAE, ME, COR, MSE)
+    names(stats) <- c("RMSE", "MAE", "ME", "COR", "MSE")
     
     if(is.na(digits))
       return(stats)
@@ -180,15 +180,12 @@ lolocvParallel <- function(res){
   
   stats <- data.frame(as.list(crossStat(digits=5)))
   
-  filename = paste("~/output/lolocv/parallel_lolocv_", res, ".csv", sep="")
+  filename = paste("~/GitHub/ADS-Snuffelfiets-Thesis/output/lolocv/parallel_lolocv_", res, ".csv", sep="")
   write.csv(stats, file=filename, row.names=FALSE)
   
 }
 
 
-#lolocvParallel(1000)
+lolocvParallel(125)
 
-#for (re in c(125, 100)){
-#  lolocvParallel(re)
-#}
 

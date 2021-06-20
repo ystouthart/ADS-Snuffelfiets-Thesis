@@ -24,7 +24,7 @@ externalCV <- function(res){
   # Opening the Reference Stations Regression Features:
   refr <- read.csv('~/GitHub/ADS-Snuffelfiets-Thesis/data/processed/regression_features/reference_features100.csv')
 
-  # Transform to 'stars' object 
+  # Transform Reference Statoins to 'stars' object 
   refr_loc <- refr[c("X","Y","val")]
   sf_data <- st_as_sf(refr_loc, coords = c("X", "Y"), crs = 28992)
   
@@ -46,14 +46,13 @@ externalCV <- function(res){
   pm_stars = st_as_stars(val = mat,dim = dims)
   
   
-  # Convert Reference Regression Features:
+  # Convert Reference Stations Regression Features for subsequent LM-predictions:
   refr$date = as.POSIXct(refr$date)
   refr = refr[order(refr[,"date"], refr[,"X"], refr[,"Y"]),]
   coordinates(refr) <- ~X+Y
   utrecht <- st_read("~/GitHub/ADS-Snuffelfiets-Thesis/data/external/WijkBuurtkaart_2020_v1/gem_utrecht.shp")
   projection(refr) <- projection(utrecht)
   
-  # Set factors
   refr$road <- as.factor(refr$road)
   refr$rail <- as.factor(refr$rail)
   refr$HH <- as.factor(refr$HH)
@@ -62,7 +61,7 @@ externalCV <- function(res){
 
   ####################################################
   # Spatio-Temporal Regression Kriging with Snuffelfiets data on the Reference Station Locations:
-  
+
   # Load the Snuffelfiets Regression Features:
   filename <- paste("~/GitHub/ADS-Snuffelfiets-Thesis/data/processed/regression_features/features", res, ".csv", sep="")
   d <- read.csv(filename)
@@ -71,7 +70,6 @@ externalCV <- function(res){
   coordinates(d) <- ~X+Y
   projection(d) <- projection(utrecht)
   
-  # Set factors
   d$road <- as.factor(d$road)
   d$rail <- as.factor(d$rail)
   d$HH <- as.factor(d$HH)
@@ -80,19 +78,19 @@ externalCV <- function(res){
   ####################################################
   # Linear Model:
   
-  # Train the model
+  # Train the model on SF data
   lm <- lm(pm2_5_mean ~ address_density + pop_density  + road + rail + wind_dir + HH + wind_speed + humidity , data=d, na.action="na.exclude")
   summary(lm)
   
-  # Generate predictions
+  # Generate SF predictions
   lm_pred <- predict.lm(lm, se.fit=T)
   
-  # Create the prediction-residuals dataframe
+  # Create the SF prediction-residuals dataframe
   pred_df <- data.frame("x"=d@coords[,1], "y"=d@coords[,2], "date"=d$date, "pm2_5"=d$pm2_5_mean, "pred"=lm_pred[["fit"]], "se.fit"=lm_pred[["se.fit"]])
   pred_df$res <- pred_df$pm2_5 - pred_df$pred
   
   
-  # Converting residuals to 'stars' object
+  # Convert SF residuals to 'stars' object
   sf_data <- st_as_sf(pred_df, coords = c("x", "y"), crs = 28992)
   
   pred_stars = sf_data %>% st_as_sf(coords = c('X','Y'))
@@ -116,7 +114,7 @@ externalCV <- function(res){
   ####################################################
   # Variogram:
   
-  # Creating the Empirical ST Variogram on the Residuals
+  # Creating the Empirical ST Variogram on the SF Residuals
   vv=variogramST(res~1, pred_stars, cressie=F, boundaries=c(500,1000, 1500, 2000, 2500, 3000, 3500, 4000, 4500), tlags = 0:6)
   
   # Fitting the ST Variogram model
@@ -125,7 +123,7 @@ externalCV <- function(res){
   fitmetric <- fit.StVariogram(vv, metric)
   
   ####################################################
-  # Residual Kriging on the Reference Locations:
+  # Residual Kriging on the Reference Stations Locations:
   
   gc()
   
@@ -135,14 +133,14 @@ externalCV <- function(res){
   
   
   ####################################################
-  # Add LM predictions to the Reference Locations:
+  # LM predictions on the Reference Stations Locations:
   
   predictors <- refr[c("address_density", "pop_density", "road", "rail", "wind_dir", "HH", "wind_speed", "humidity")]
   
   full_pred = predict.lm(lm, predictors)
   full_pred <- data.frame("date"=refr@data[,"date"], "x"=coordinates(refr)[,"X"], "y"=coordinates(refr)[,"Y"], "lm_pred"=full_pred)
   
-  # Convert LM Reference Predictions to "stars" object:
+  # Convert LM Predictions to "stars" object:
   sf_data <- st_as_sf(full_pred, coords = c("x", "y"), crs = 28992)
   
   full_pred_stars = sf_data %>% st_as_sf(coords = c('X','Y'))
@@ -179,7 +177,10 @@ externalCV <- function(res){
   total <- dplyr::bind_rows(total_list)
   total$date <- as.character(total$date)
   
-
+  
+  ####################################################
+  # Compare ST.Reg.Kriging predictions with Reference Station measurements:
+  
   # Add Reference Station measurements from https://data.rivm.nl/data/luchtmeetnet/:
   rivm_pm25 <- read.csv('~/GitHub/ADS-Snuffelfiets-Thesis/data/external/2020_PM25.csv', skip=7, sep=";")
   rivm_pm25 <- rivm_pm25[,c(5,26,28)] 
@@ -202,7 +203,7 @@ externalCV <- function(res){
   full <- full[(full$PM2.5>0),]
   
   
-  # crossStat function adopted from demo(stkrige-crossvalidation):
+  # Calculate statistics (adopted from demo(stkrige-crossvalidation)):
   crossStat <- function(pred=full$sum, res=full$PM2.5, digits=NA) {
     
     diff <- pred - res
@@ -228,11 +229,13 @@ externalCV <- function(res){
   
   stats <- data.frame(as.list(crossStat(digits=5)))
   
+  
   ####################################################
   # Save the results as CSV:
   
   filename = paste("C:/Users/Klant/Documents/GitHub/ADS-Snuffelfiets-Thesis/output/external_cv/external_cv", res, ".csv", sep="")
   write.csv(stats, file=filename, row.names=FALSE)
+  
 }
 
 externalCV(100)

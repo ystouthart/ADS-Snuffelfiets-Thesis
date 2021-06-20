@@ -1,7 +1,7 @@
 ###
 ###  regression_features.R
 ###
-###  Combines the aggregated Snuffelfiets measurements (dependent variable) with the independent features.
+###  Combines the aggregated Snuffelfiets measurements (dependent variable) with the independent regression features.
 ###  The independent features are both Spatial (e.g. distance to roads) and Temporal (e.g. humidity, time).
 ###
 ###  Input: Aggregated & rasterized Snuffelfiets data (output from VMS_grid.R).
@@ -21,9 +21,8 @@ regressionFeatures <- function(res){
   # Create the spatial regression predictors:
   
   # Address density and population density
-  utrecht <- st_read("~/GitHub/ADS-Snuffelfiets-Thesis/data/external/WijkBuurtkaart_2020_v1/gem_utrecht.shp")
   r <- raster(extent(utrecht), resolution=c(res), crs=projection(utrecht)) 
-  neighborhoods <- st_read("~/GitHub/ADS-Snuffelfiets-Thesis/data/external/WijkBuurtkaart_2020_v1/buurt_2020_v1.shp")
+  neighborhoods <- st_read("~/data/external/WijkBuurtkaart_2020_v1/buurt_2020_v1.shp")
   
   address_density <- rasterize(neighborhoods, r, field = "OAD", mean)
   values(address_density)[values(address_density)<0] <- 0
@@ -32,21 +31,23 @@ regressionFeatures <- function(res){
   values(pop_density)[values(pop_density)<0] <- 0
   
   # Proximity to main roads (A/N-type)
-  roads <- raster("~/GitHub/ADS-Snuffelfiets-Thesis/data/external/road_distance_utrecht.TIF")
+  roads <- raster("~/data/external/road_distance_utrecht.tif")
   values(roads)[values(roads)<=150] <- 1
   values(roads)[values(roads)>150] <- 0 # Label all area's closer than 100m to main roads
   
   # Proximity to rail roads
-  rail <- raster("~/GitHub/ADS-Snuffelfiets-Thesis/data/external/rail_distance_utrecht.TIF")
+  rail <- raster("~/data/external/rail_distance_utrecht.tif")
   values(rail)[values(rail)<=150] <- 1
   values(rail)[values(rail)>150] <- 0
   
-  
+  print("feat. check spat.")
   ###################################################################
+  
+  
   # Create the temporal regression predictors:
   
   # Open the KNMI data (KNMI, 2021):
-  knmi <- read.csv('~/GitHub/ADS-Snuffelfiets-Thesis/data/external/uurgeg_260_2011-2020/uurgeg_260_2011-2020.txt', skip=31, strip.white=T)
+  knmi <- read.csv('~/data/external/uurgeg_260_2011-2020/uurgeg_260_2011-2020.txt', skip=31, strip.white=T)
   knmi <- knmi[,c(2,3,4,5,18)] 
   
   # Create Datetime column for matching
@@ -65,30 +66,32 @@ regressionFeatures <- function(res){
   knmi$DD[knmi$DD==990] <- "VAR" # variable
   knmi$DD[knmi$DD==0] <- "NO" # no wind
   
-  colnames(knmi) <- c("HH", "wind_dir", "wind_speed", "humidity", "date")
-  
+  colnames(knmi) <- c("HR", "WD", "WS", "humidity", "date")
+  print("feat. check temp.")
   ###################################################################
+  
+  
   # Combine dependents and independents:
   
   # Load the aggregated Snuffelfiets measurements (same resolution as res!!!)
-  filename <- paste("~/GitHub/ADS-Snuffelfiets-Thesis/data/processed/vms_grid/hourly/", res, "/f_full_grid_vms", res, ".csv", sep="")
+  filename <- paste("~/data/processed/vms/f_full_grid_vms", res, ".csv", sep="")
   data <- read.csv(filename)
   coordinates(data) <- ~x+y
   projection(data) <- projection(utrecht) # set the projection equal
   
   # Add the Spatial predictors
-  data$pop_density <- extract(pop_density, data)
-  data$address_density <- extract(address_density, data)
+  data$pop <- extract(pop_density, data)
+  data$address <- extract(address_density, data)
   data$road <- extract(roads, data)
   data$rail <- extract(rail, data)
   
   # Add the Temporal predictors
   data <- merge(data, knmi, by="date")
   
+  print("feat. check 3")
   
   ###################################################################
   # Using 'osmenrich' package for adding more spatial features from OpenStreetMap:
-  
   
   sf_data <- st_as_sf(data.frame(round(coordinates(r),1)), coords = c("x", "y"), crs = 28992)
   
@@ -105,12 +108,14 @@ regressionFeatures <- function(res){
   
   spat_join <- st_join(data, sf_data_ts)
   
+  print("feat. check osm")
   
   ###################################################################
-  # Save as Regression Features CSV file: 
+  ###################################################################
   
-  filename = paste("~/GitHub/ADS-Snuffelfiets-Thesis/data/processed/regression_features/features", res, ".csv", sep='')
+  
+  # Save as Regression Features CSV file
+  filename = paste("~/data/processed/regression_features/features", res, ".csv", sep='')
   st_write(spat_join, filename, layer_options = "GEOMETRY=AS_XY", append=FALSE)
 }
-
 
