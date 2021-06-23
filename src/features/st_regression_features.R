@@ -14,15 +14,18 @@ library(gstat)
 library(sp)
 library(sf)
 library(osmenrich)
+library(lubridate)
 
-
+res <- 1000
 
 regressionFeatures <- function(res){
   # Create the spatial regression predictors:
   
   # Address density and population density
+  utrecht <- st_read("~/GitHub/ADS-Snuffelfiets-Thesis/data/external/WijkBuurtkaart_2020_v1/gem_utrecht.shp")
   r <- raster(extent(utrecht), resolution=c(res), crs=projection(utrecht)) 
-  neighborhoods <- st_read("~/data/external/WijkBuurtkaart_2020_v1/buurt_2020_v1.shp")
+  
+  neighborhoods <- st_read("~/GitHub/ADS-Snuffelfiets-Thesis/data/external/WijkBuurtkaart_2020_v1/buurt_2020_v1.shp")
   
   address_density <- rasterize(neighborhoods, r, field = "OAD", mean)
   values(address_density)[values(address_density)<0] <- 0
@@ -31,14 +34,16 @@ regressionFeatures <- function(res){
   values(pop_density)[values(pop_density)<0] <- 0
   
   # Proximity to main roads (A/N-type)
-  roads <- raster("~/data/external/road_distance_utrecht.tif")
-  values(roads)[values(roads)<=150] <- 1
-  values(roads)[values(roads)>150] <- 0 # Label all area's closer than 100m to main roads
+  roads <- shapefile("~/GitHub/ADS-Snuffelfiets-Thesis/data/external/Road.shp")
+  roads <- rasterize(roads, r, field="COUNT")
+  values(roads)[values(roads)>0] <- 1
+  values(roads)[is.na(values(roads))] <- 0
   
   # Proximity to rail roads
-  rail <- raster("~/data/external/rail_distance_utrecht.tif")
-  values(rail)[values(rail)<=150] <- 1
-  values(rail)[values(rail)>150] <- 0
+  rail <- shapefile("~/GitHub/ADS-Snuffelfiets-Thesis/data/external/Rail.shp")
+  rail <- rasterize(rail, r, field="VALUE")
+  values(rail)[values(rail)>0] <- 1
+  values(rail)[is.na(values(rail))] <- 0
   
   print("feat. check spat.")
   ###################################################################
@@ -47,10 +52,11 @@ regressionFeatures <- function(res){
   # Create the temporal regression predictors:
   
   # Open the KNMI data (KNMI, 2021):
-  knmi <- read.csv('~/data/external/uurgeg_260_2011-2020/uurgeg_260_2011-2020.txt', skip=31, strip.white=T)
+  knmi <- read.csv('~/GitHub/ADS-Snuffelfiets-Thesis/data/external/uurgeg_260_2011-2020/uurgeg_260_2011-2020.txt', skip=31, strip.white=T)
   knmi <- knmi[,c(2,3,4,5,18)] 
   
   # Create Datetime column for matching
+  knmi$HH <- knmi$HH-1 # to match KNMI to Snuffelfiets measurement intervals.
   knmi$date <- as.POSIXct(paste(knmi$YYYYMMDD, knmi$HH, sep=" "), format="%Y%m%d %H")
   knmi$date <- as.character(knmi$date)
   knmi <- knmi[,-1] 
@@ -74,16 +80,16 @@ regressionFeatures <- function(res){
   # Combine dependents and independents:
   
   # Load the aggregated Snuffelfiets measurements (same resolution as res!!!)
-  filename <- paste("~/data/processed/vms/f_full_grid_vms", res, ".csv", sep="")
+  filename <- paste("~/GitHub/ADS-Snuffelfiets-Thesis/data/processed/vms/f_full_grid_vms", res, ".csv", sep="")
   data <- read.csv(filename)
   coordinates(data) <- ~x+y
   projection(data) <- projection(utrecht) # set the projection equal
   
   # Add the Spatial predictors
-  data$pop <- extract(pop_density, data)
-  data$address <- extract(address_density, data)
-  data$road <- extract(roads, data)
-  data$rail <- extract(rail, data)
+  data$pop <- raster::extract(pop_density, data)
+  data$address <- raster::extract(address_density, data)
+  data$road <- raster::extract(roads, data)
+  data$rail <- raster::extract(rail, data)
   
   # Add the Temporal predictors
   data <- merge(data, knmi, by="date")
@@ -115,7 +121,12 @@ regressionFeatures <- function(res){
   
   
   # Save as Regression Features CSV file
-  filename = paste("~/data/processed/regression_features/features", res, ".csv", sep='')
+  filename = paste("~/GitHub/ADS-Snuffelfiets-Thesis/data/processed/regression_features/features", res, ".csv", sep='')
   st_write(spat_join, filename, layer_options = "GEOMETRY=AS_XY", append=FALSE)
+}
+
+
+for (re in c(1000, 500, 250, 125, 100)){
+  regressionFeatures(re)
 }
 
