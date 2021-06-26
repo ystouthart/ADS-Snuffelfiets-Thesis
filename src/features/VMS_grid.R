@@ -52,7 +52,7 @@ vmsGridHourlyF <- function(d, res){
     spdf = as.data.frame(r,xy=TRUE, centroids=TRUE)
     spdf <- setNames(spdf, c("x", "y", "pm2_5_med", "pm2_5_mean", "count", "unique", "se", "sd"))
     spdf$date <- uniq[i]
-    
+
     datalist[[i]] <- spdf
   }
   
@@ -68,10 +68,14 @@ vmsGridHourlyF <- function(d, res){
 
 vmsGridHourlyF(data, 1000)
 vmsGridHourlyF(data, 500)
+vmsGridHourlyF(data, 750)
 vmsGridHourlyF(data, 250)
 vmsGridHourlyF(data, 125)
 vmsGridHourlyF(data, 100)
 
+vmsGridHourlyF(data, 25)
+vmsGridHourlyF(data, 50)
+vmsGridHourlyF(data, 1500)
 
 
 

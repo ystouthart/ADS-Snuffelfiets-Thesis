@@ -217,9 +217,8 @@ externalCV <- function(res){
     ME <- mean(diff)
     COR <- cor(pred, res)
     MSE <- mean(diff^2)
-    CONCOR <- (2*cov12)/(variance1+variance2+(mu1-mu2)^2)
-    stats <- c(RMSE, MAE, ME, COR, MSE, CONCOR)
-    names(stats) <- c("RMSE", "MAE", "ME", "COR", "MSE", "CONCOR")
+    stats <- c(RMSE, MAE, ME, COR, MSE)
+    names(stats) <- c("RMSE", "MAE", "ME", "COR", "MSE")
     
     if(is.na(digits))
       return(stats)

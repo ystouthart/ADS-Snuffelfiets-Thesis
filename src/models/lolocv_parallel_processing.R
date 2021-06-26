@@ -33,7 +33,7 @@ lolocvParallel <- function(res){
   projection(d) <- projection(utrecht)
   
   # Set factors
-  d$road <- as.factor(d$road)
+  d$road <- as.factor(d$road)b
   d$rail <- as.factor(d$rail)
   d$HH <- as.factor(d$HH)
   d$wind_dir <- as.factor(d$wind_dir)
