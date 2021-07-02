@@ -168,3 +168,8 @@ vmsGridDaily(data, 125)
 vmsGridDaily(data, 100)
 vmsGridDaily(data, 50)
 vmsGridDaily(data, 25)
+
+
+
+raster(extent(utrecht), resolution=c(25), crs=crs(utrecht))
+

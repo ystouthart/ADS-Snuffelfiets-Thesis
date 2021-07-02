@@ -16,14 +16,16 @@ library(sf)
 library(spacetime)
 library(stars)
 library(data.table)
+library("xlsx")
 
 utrecht <- st_read("C:/Users/Klant/Documents/GitHub/ADS-Snuffelfiets-Thesis/data/external/WijkBuurtkaart_2020_v1/gem_utrecht.shp")
 
 
 
+
 ####################################################
 # Load the Regression Features:
-d <- read.csv('C:/Users/Klant/Documents/GitHub/ADS-Snuffelfiets-Thesis/data/processed/regression_features/features1000.csv')
+d <- read.csv('C:/Users/Klant/Documents/GitHub/ADS-Snuffelfiets-Thesis/data/processed/regression_features/features500.csv')
 d$date = as.POSIXct(d$date)
 d = d[order(d[,"date"], d[,"X"], d[,"Y"]),]
 coordinates(d) <- ~X+Y
@@ -33,7 +35,7 @@ projection(d) <- projection(utrecht)
 d$road <- as.factor(d$road)
 d$rail <- as.factor(d$rail)
 d$HR <- as.factor(d$HR)
-d$HR = relevel(d$HR, ref=6)
+d$HR = relevel(d$HR, ref=1)
 d$WD <- as.factor(d$WD)
 d$WD = relevel(d$WD, ref="N")
 d$pop <- d$pop/1000
@@ -43,7 +45,7 @@ d$address <- d$address/1000
 # Linear Model:
 
 # Train the model
-lm <- lm(pm2_5_mean ~ address + pop  + road + rail + WD + HR + WS + humidity , data=d, na.action="na.exclude")
+lm <- lm(pm2_5_mean ~ pop + address + road + rail + WD  + WS + humidity + HR, data=d, na.action="na.exclude")
 summary(lm)
 
 
@@ -52,7 +54,7 @@ lm_pred <- predict.lm(lm, se.fit=T)
 
 # Create the prediction dataframe
 pred_df <- data.frame("x"=d@coords[,1], "y"=d@coords[,2], "date"=d$date, "pm2_5"=d$pm2_5_mean, "pred"=lm_pred[["fit"]], "se.fit"=lm_pred[["se.fit"]])
-pred_df$res <- pred_df$pm2_5 - pred_df$pred
+pred_df$res <- pred_df$pm2_5 - pred_df$pred  
 
 
 # Converting pred_df to 'stars' object (Thanks Lucas :)) 
@@ -90,13 +92,21 @@ metric <- vgmST("metric", joint=vgm(psill=25, model="Exp", range=2000, nugget=0)
 set.seed(seed=123)
 fitmetric <- fit.StVariogram(vv, metric)
 
+fitmetric
+
+
+attr(fitmetric, "optim")$value # MSE
+attr(fitmetric, "optim")$convergence # must be 0
+
+
+
 #plot(vv, fitmetric, wireframe=T)
 
-#plot(vv, list(fitmetric), all=T, wireframe=T, 
+plot(vv, list(fitmetric), all=T, wireframe=T, 
      scales=list(arrows=F, z=list(distance=5)), 
      xlab=list("h (m)", rot=30), ylab=list("u (hours)", rot=-35), zlab=expression(~gamma)) 
 
-#rstudioapi::savePlotAsImage("vv_vgm.jpg",width=1000,height=500)
+rstudioapi::savePlotAsImage("vv_vgm100.jpg",width=1000,height=500)
 
 ####################################################
 # Kriging of the Residuals:

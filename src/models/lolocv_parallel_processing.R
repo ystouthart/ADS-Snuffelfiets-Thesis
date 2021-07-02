@@ -20,7 +20,7 @@ library(parallel)
 library(foreach)
 library(bigstatsr)
 
-res <- 125
+res <- 750
 
 
 lolocvParallel <- function(res){
@@ -33,10 +33,10 @@ lolocvParallel <- function(res){
   projection(d) <- projection(utrecht)
   
   # Set factors
-  d$road <- as.factor(d$road)b
+  d$road <- as.factor(d$road)
   d$rail <- as.factor(d$rail)
-  d$HH <- as.factor(d$HH)
-  d$wind_dir <- as.factor(d$wind_dir)
+  d$HR <- as.factor(d$HR)
+  d$WD <- as.factor(d$WD)
   
   print("check load")
   
@@ -44,7 +44,7 @@ lolocvParallel <- function(res){
   # Linear Model:
   
   # Train the model
-  lm <- lm(pm2_5_mean ~ address_density + pop_density  + road + rail + wind_dir + HH + wind_speed + humidity , data=d, na.action="na.exclude")
+  lm <- lm(pm2_5_mean ~ pop + address  + road + rail + WD + HR + WS + humidity , data=d, na.action="na.exclude")
   summary(lm)
   
   # Generate predictions
@@ -52,7 +52,7 @@ lolocvParallel <- function(res){
   
   # Create the prediction dataframe
   pred_df <- data.frame("x"=d@coords[,1], "y"=d@coords[,2], "date"=d$date, "pm2_5"=d$pm2_5_mean, "pred"=lm_pred[["fit"]], "se.fit"=lm_pred[["se.fit"]])
-  pred_df$res <- pred_df$pm2_5 - pred_df$pred
+  pred_df$res <- pred_df$pm2_5 - pred_df$pred  
   
   
   # Converting pred_df to 'stars' object
@@ -97,7 +97,7 @@ lolocvParallel <- function(res){
   #####################################
   # LOLOCV:
   
-  # LOLO Predictions:
+  # LOLO Prediction Grid:
   locations = st_as_stars(value = matrix(1, length(st_dimensions(pred_stars)$space$values), length(st_dimensions(pred_stars)$time$values)), dim = dims)
   
   pred_matrix <- matrix(NA, length(st_dimensions(locations)$space$values),length(st_dimensions(locations)$time$values))
@@ -148,12 +148,10 @@ lolocvParallel <- function(res){
   #####################################
   # Calculating performance statistics:
   
-  
-  
   # crossStat function adopted from demo(stkrige-crossvalidation)
   crossStat <- function(pred=mat[][!is.na(res_matrix)], res=res_matrix[!is.na(res_matrix)], digits=NA) {
     
-    diff <- pred - res
+    diff <- res - pred
     
     variance1 <- var(pred)
     variance2 <- var(res)
@@ -186,6 +184,26 @@ lolocvParallel <- function(res){
 }
 
 
-lolocvParallel(125)
+#lolocvParallel(125)
+
+pred=mat[][!is.na(res_matrix)]
+res=res_matrix[!is.na(res_matrix)]
+
+error = res-pred
+summary(error)
+length(error)
+
+library("ggpubr")
+ggdensity(error, 
+          main = "Density plot of tooth length",
+          xlab = "Tooth length")
+
+ggplot2.histogram(data=error, xName='weight', binwidth=0.1)
+
+ggqqplot(error)
+
+library("car")
+qqPlot(error)
 
 
+write.csv(error, file="~/GitHub/ADS-Snuffelfiets-Thesis/output/lolocv/errors/error750-2", row.names=FALSE)

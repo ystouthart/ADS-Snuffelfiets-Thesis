@@ -87,7 +87,7 @@ externalCV <- function(res){
   
   # Create the SF prediction-residuals dataframe
   pred_df <- data.frame("x"=d@coords[,1], "y"=d@coords[,2], "date"=d$date, "pm2_5"=d$pm2_5_mean, "pred"=lm_pred[["fit"]], "se.fit"=lm_pred[["se.fit"]])
-  pred_df$res <- pred_df$pm2_5 - pred_df$pred
+  pred_df$res <- pred_df$pm2_5 - pred_df$pred  
   
   
   # Convert SF residuals to 'stars' object
