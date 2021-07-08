@@ -1,11 +1,10 @@
 ###
 ###  regression_features.R
 ###
-###  Combines the aggregated Snuffelfiets measurements (dependent variable) with the independent regression features.
-###  The independent features are both Spatial (e.g. distance to roads) and Temporal (e.g. humidity, time).
+###  Combines the aggregated Snuffelfiets measurements (dependent variable) with the linear regression features, both Spatial (e.g. distance to roads) and Temporal (e.g. humidity, time).
 ###
 ###  Input: Aggregated & rasterized Snuffelfiets data (output from VMS_grid.R).
-###  Output: A single CSV with all features needed for Spatio Temporal Regression Kriging.
+###  Output: A single CSV with a three-dimensinal matrix containing all regression features for Spatio Temporal Regression Kriging.
 ###
 
 rm(list=ls())
@@ -16,11 +15,11 @@ library(sf)
 library(osmenrich)
 library(lubridate)
 
-res <- 1000
 
 regressionFeatures <- function(res){
+  # res = raster resolution
+
   # Create the spatial regression predictors:
-  
   # Address density and population density
   utrecht <- st_read("~/GitHub/ADS-Snuffelfiets-Thesis/data/external/WijkBuurtkaart_2020_v1/gem_utrecht.shp")
   r <- raster(extent(utrecht), resolution=c(res), crs=projection(utrecht)) 
@@ -45,7 +44,6 @@ regressionFeatures <- function(res){
   values(rail)[values(rail)>0] <- 1
   values(rail)[is.na(values(rail))] <- 0
   
-  print("feat. check spat.")
   ###################################################################
   
   
@@ -73,7 +71,6 @@ regressionFeatures <- function(res){
   knmi$DD[knmi$DD==0] <- "NO" # no wind
   
   colnames(knmi) <- c("HR", "WD", "WS", "humidity", "date")
-  print("feat. check temp.")
   ###################################################################
   
   
@@ -93,9 +90,7 @@ regressionFeatures <- function(res){
   
   # Add the Temporal predictors
   data <- merge(data, knmi, by="date")
-  
-  print("feat. check 3")
-  
+
   ###################################################################
   # Using 'osmenrich' package for adding more spatial features from OpenStreetMap:
   
@@ -113,9 +108,7 @@ regressionFeatures <- function(res){
   data <- st_as_sf(data, crs=28992)
   
   spat_join <- st_join(data, sf_data_ts)
-  
-  print("feat. check osm")
-  
+
   ###################################################################
   ###################################################################
   
@@ -126,7 +119,7 @@ regressionFeatures <- function(res){
 }
 
 
-for (re in c(1000, 500, 250, 125, 100)){
+for (re in c(1000, 750, 500, 250, 100)){
   regressionFeatures(re)
 }
 

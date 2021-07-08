@@ -1,10 +1,10 @@
 ###
 ###  VMS_grid.R
 ###
-###  Aggregates the Snuffelfiets data on a regular grid. For three temporal resolutions: regular (full period), daily and hourly.
+###  Aggregates the Snuffelfiets data on a regular grid, for each hour in the data. Combines the resulting rasters as a three dimensional matrix in a CSV file.
 ###
 ###  Input: Preprocessed Snuffelfiets data (output from retrieval_prep_city_january.py and select_period.py).
-###  Outputs: A single CSV file with all filled raster cells (so, no empty cells), for all time periods (if applicable).
+###  Outputs: A single CSV file with a three dimensional matrix, containing the aggregated Snuffelfiets data.
 ###
 
 
@@ -26,10 +26,10 @@ proj4string(data) <- CRS(st_crs(4326)$wkt)
 data <- spTransform(data, crs(utrecht))
 
 
-vmsGridHourlyF <- function(d, res){
+vmsGridHourly <- function(d, res){
   #
-  # Takes in the full Snuffelfiets SPDF, and saves a SPDF with aggregated median pm2.5 values per hour in .csv.
-  # d = SPDF, res = raster resolution
+  # Takes in the full Snuffelfiets data, and saves a raster with aggregated pm2.5 values per hour in .csv.
+  # d = SF data, res = raster resolution
   #
   d$recording_time <- as.POSIXct(d$recording_time,format="%Y-%m-%d %H:%M:%S")
   d$recording_timeH <- as.POSIXct(trunc(d$recording_time, units = "hours"),format="%Y-%m-%d %H:%M:%S")  
@@ -65,23 +65,23 @@ vmsGridHourlyF <- function(d, res){
 } 
 
 
-
+vmsGridHourlyF(data, 1500)
 vmsGridHourlyF(data, 1000)
-vmsGridHourlyF(data, 500)
 vmsGridHourlyF(data, 750)
+vmsGridHourlyF(data, 500)
 vmsGridHourlyF(data, 250)
 vmsGridHourlyF(data, 125)
 vmsGridHourlyF(data, 100)
-
-vmsGridHourlyF(data, 25)
 vmsGridHourlyF(data, 50)
-vmsGridHourlyF(data, 1500)
+vmsGridHourlyF(data, 25)
+
 
 
 
 
 ##############################
-# Old:
+##############################
+# Old functions (daily & no temporal aggregation):
 
 
 vmsGrid <- function(d, res){
@@ -147,29 +147,4 @@ vmsGridDaily <- function(d, res){
   write.csv(merge, file=filename, row.names=FALSE)
   print("saved total")
 } 
-
-
-# Create VMS Grids
-# Total
-vmsGrid(data, 1500)
-vmsGrid(data, 1000)
-vmsGrid(data, 500)
-vmsGrid(data, 250)
-vmsGrid(data, 125)
-vmsGrid(data, 100)
-vmsGrid(data, 50)
-vmsGrid(data, 25)
-# Daily
-vmsGridDaily(data, 1500)
-vmsGridDaily(data, 1000)
-vmsGridDaily(data, 500)
-vmsGridDaily(data, 250)
-vmsGridDaily(data, 125)
-vmsGridDaily(data, 100)
-vmsGridDaily(data, 50)
-vmsGridDaily(data, 25)
-
-
-
-raster(extent(utrecht), resolution=c(25), crs=crs(utrecht))
 

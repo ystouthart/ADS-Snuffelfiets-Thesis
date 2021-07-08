@@ -20,7 +20,7 @@ import re
 store = []
 
 
-# Open City of Utrecht polygon.
+# Open City of Utrecht polygon (for the bounding box).
 utrecht = gpd.read_file("../../data/external/WijkBuurtkaart_2020_v1/gem_utrecht.shp")
 utrecht = utrecht.to_crs("EPSG:28992")
 

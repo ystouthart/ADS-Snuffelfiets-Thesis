@@ -1,7 +1,7 @@
-ADS Snuffelfiets Thesis
+Snuffelfiets Thesis Project
 ==============================
-## Mapping Air Quality using Volunteer-Generated Sensor Data
-Thesis Project in partial fulfilment of the Applied Data Science Master's programme at Utrecht University.
+## Data Aggregation for Spatio-Temporal Models: Predicting Volunteer-Generated PM2.5 Measurements
+A thesis submitted in partial fulfilment of the Applied Data Science Master's programme at Utrecht University.
 
 Project Organization
 ------------
@@ -19,13 +19,9 @@ Project Organization
     ├── output             <- Model output, model predictions, or model summaries.
     │   
     │
-    ├── notebooks          <- Jupyter notebooks. Naming convention is a number (for ordering),
-    │                         the creator's initials, and a short `-` delimited description, e.g.
-    │                         `1.0-ads-exploratory-data-analysis`.
+    ├── notebooks          <- Jupyter notebooks. 
     │
-    ├── references         <- Data dictionaries, manuals, and all other explanatory materials.
-    │
-    ├── reports            <- Generated analysis as HTML, PDF, LaTeX, etc.
+    ├── reports            <- Generated report as PDF and doc. (after grading)
     │   └── figures        <- Generated graphics and figures to be used in reporting.
     │
     ├── requirements.txt   <- The requirements file for reproducing the analysis environment.                         

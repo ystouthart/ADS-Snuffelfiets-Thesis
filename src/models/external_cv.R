@@ -1,9 +1,9 @@
 ###
 ###  external_cv.R
 ###
-###  Applies External Cross-Validation on the ST Regression Kriging Models
+###  Applies External Cross-Validation on the Spatio-Temporal Regression Kriging Models to assess prediction accuracy.
 ###
-###  Input: Snuffelfiets Regression Features (output from st_regression_features.R) +  Reference Station Regression Features (https://data.rivm.nl/data/luchtmeetnet/).
+###  Input: Snuffelfiets Regression Features (output from st_regression_features.R) +  Reference Station Regression Features (RIVM, 2021) (https://data.rivm.nl/data/luchtmeetnet/).
 ###  Output: Calculated statistics.
 ###
 
@@ -24,7 +24,7 @@ externalCV <- function(res){
   # Opening the Reference Stations Regression Features:
   refr <- read.csv('~/GitHub/ADS-Snuffelfiets-Thesis/data/processed/regression_features/reference_features100.csv')
 
-  # Transform Reference Statoins to 'stars' object 
+  # Transform Reference Stations locations to 'stars' object 
   refr_loc <- refr[c("X","Y","val")]
   sf_data <- st_as_sf(refr_loc, coords = c("X", "Y"), crs = 28992)
   
@@ -57,7 +57,8 @@ externalCV <- function(res){
   refr$rail <- as.factor(refr$rail)
   refr$HH <- as.factor(refr$HH)
   refr$wind_dir <- as.factor(refr$wind_dir)
-  
+  refr$pop_density <- refr$pop_density/1000
+  refr$address_density <- refr$address_density/1000 
 
   ####################################################
   # Spatio-Temporal Regression Kriging with Snuffelfiets data on the Reference Station Locations:
@@ -72,14 +73,16 @@ externalCV <- function(res){
   
   d$road <- as.factor(d$road)
   d$rail <- as.factor(d$rail)
-  d$HH <- as.factor(d$HH)
-  d$wind_dir <- as.factor(d$wind_dir)
-  
+  d$HD <- as.factor(d$HD)
+  d$WD <- as.factor(d$WD)
+  d$pop <- d$pop/1000
+  d$address <- d$address/1000 
+
   ####################################################
   # Linear Model:
   
   # Train the model on SF data
-  lm <- lm(pm2_5_mean ~ address_density + pop_density  + road + rail + wind_dir + HH + wind_speed + humidity , data=d, na.action="na.exclude")
+  lm <- lm(pm2_5_mean ~ address + pop  + road + rail + WD + HD + WS + humidity , data=d, na.action="na.exclude")
   summary(lm)
   
   # Generate SF predictions
@@ -136,7 +139,8 @@ externalCV <- function(res){
   # LM predictions on the Reference Stations Locations:
   
   predictors <- refr[c("address_density", "pop_density", "road", "rail", "wind_dir", "HH", "wind_speed", "humidity")]
-  
+  colnames(predictors@data) <- c("date", "address", "pop", "road", "rail", "WD", "HR", "WS", "humidity") # update the old column names
+
   full_pred = predict.lm(lm, predictors)
   full_pred <- data.frame("date"=refr@data[,"date"], "x"=coordinates(refr)[,"X"], "y"=coordinates(refr)[,"Y"], "lm_pred"=full_pred)
   
