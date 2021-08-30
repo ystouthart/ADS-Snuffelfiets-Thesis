@@ -18,8 +18,8 @@ Project Organization
     │   
     ├── notebooks          <- Jupyter Notebooks. 
     │
-    ├── reports            <- Generated report as PDF and doc. (available after grading)
-    │   └── figures        <- Generated graphics and figures to be used in reporting.
+    ├── reports            <- Generated report as PDF and doc. (available on request)
+    │   └── figures        <- Generated graphics and figures to be used in reporting. (available on request)
     │
     ├── requirements.txt   <- The requirements file for reproducing the analysis environment.                         
     │
